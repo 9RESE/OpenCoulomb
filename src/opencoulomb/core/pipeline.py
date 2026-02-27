@@ -10,6 +10,8 @@ Orchestrates the full computation flow:
    e. Stress tensor rotation (fault-local → geographic)
    f. Accumulate into total stress/displacement
 3. Resolve total stress onto receiver faults → CFS
+4. (Optional) OOPs: add regional stress, find optimal failure planes
+5. Cross-section: compute stress/displacement on a vertical profile
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from opencoulomb.types.result import CoulombResult, ElementResult, StressResult
 
 if TYPE_CHECKING:
     from opencoulomb.types.model import CoulombModel
+    from opencoulomb.types.section import CrossSectionResult, CrossSectionSpec
 
 
 def compute_grid(
@@ -161,6 +164,34 @@ def compute_grid(
         material.friction,
     )
 
+    # 5. OOPs: optimally oriented planes (when regional stress is specified)
+    oops_strike = None
+    oops_dip = None
+    oops_rake = None
+
+    if model.regional_stress is not None:
+        from opencoulomb.core.oops import compute_regional_stress_tensor, find_optimal_planes
+
+        # Depth is positive downward for regional stress
+        depth_positive = np.abs(z_flat)
+
+        r_sxx, r_syy, r_szz, r_syz, r_sxz, r_sxy = (
+            compute_regional_stress_tensor(model.regional_stress, depth_positive)
+        )
+
+        # Total stress = earthquake + regional (superposition)
+        t_sxx = total_sxx + r_sxx
+        t_syy = total_syy + r_syy
+        t_szz = total_szz + r_szz
+        t_syz = total_syz + r_syz
+        t_sxz = total_sxz + r_sxz
+        t_sxy = total_sxy + r_sxy
+
+        oops_strike, oops_dip, oops_rake, _ = find_optimal_planes(
+            t_sxx, t_syy, t_szz, t_syz, t_sxz, t_sxy,
+            material.friction,
+        )
+
     return CoulombResult(
         stress=stress,
         cfs=cfs,
@@ -170,6 +201,9 @@ def compute_grid(
         receiver_dip=math.degrees(recv_dip),
         receiver_rake=math.degrees(recv_rake),
         grid_shape=(n_y, n_x),
+        oops_strike=oops_strike,
+        oops_dip=oops_dip,
+        oops_rake=oops_rake,
     )
 
 
@@ -396,3 +430,177 @@ def _kode_to_potency(
     if fault.kode == Kode.TENSILE_INFL:     # 500
         return 0.0, 0.0, col5, col6
     return 0.0, 0.0, 0.0, 0.0
+
+
+def compute_cross_section(
+    model: CoulombModel,
+    spec: CrossSectionSpec | None = None,
+    receiver_index: int | None = None,
+) -> CrossSectionResult:
+    """Compute stress/displacement on a vertical cross-section profile.
+
+    Generates a 2D grid of observation points along a profile line and
+    at regular depth intervals, then computes the full stress field and
+    CFS at each point.
+
+    Parameters
+    ----------
+    model : CoulombModel
+        Fully populated model from .inp parser.
+    spec : CrossSectionSpec or None
+        Cross-section specification. If None, uses ``model.cross_section``.
+    receiver_index : int or None
+        Which receiver fault to use for CFS resolution (same as compute_grid).
+
+    Returns
+    -------
+    CrossSectionResult
+        Stress, displacement, and CFS on the 2D profile grid.
+
+    Raises
+    ------
+    ComputationError
+        If the model has no source faults or no cross-section specification.
+    ValidationError
+        If *receiver_index* is out of bounds.
+    """
+    from opencoulomb.types.section import CrossSectionResult as _CSResult
+
+    if not model.source_faults:
+        raise ComputationError(
+            "Model has no source faults; cannot compute cross-section. "
+            "At least one source fault with non-zero slip is required."
+        )
+
+    cs = spec if spec is not None else model.cross_section
+    if cs is None:
+        raise ComputationError(
+            "No cross-section specification provided. "
+            "Pass a CrossSectionSpec or use a model with cross-section parameters."
+        )
+
+    material = model.material
+    alpha = material.alpha
+    grid = model.grid
+
+    # Generate profile geometry
+    dx = cs.finish_x - cs.start_x
+    dy = cs.finish_y - cs.start_y
+    profile_length = math.sqrt(dx * dx + dy * dy)
+
+    if profile_length < 1e-10:
+        raise ComputationError(
+            "Cross-section profile has zero length "
+            f"(start=({cs.start_x}, {cs.start_y}), "
+            f"finish=({cs.finish_x}, {cs.finish_y}))"
+        )
+
+    # Horizontal resolution: use grid x_inc
+    h_inc = grid.x_inc
+    n_horiz = max(round(profile_length / h_inc) + 1, 2)
+
+    # Depth resolution
+    depth_range = cs.depth_max - cs.depth_min
+    n_vert = max(round(depth_range / cs.z_inc) + 1, 2)
+
+    # 1D arrays
+    distance = np.linspace(0.0, profile_length, n_horiz)
+    depth = np.linspace(cs.depth_min, cs.depth_max, n_vert)
+
+    # Direction unit vector along profile
+    ux_dir = dx / profile_length
+    uy_dir = dy / profile_length
+
+    # 2D meshgrid: (depth, distance)
+    dist_2d, depth_2d = np.meshgrid(distance, depth)
+    dist_flat = dist_2d.ravel()
+    depth_flat = depth_2d.ravel()
+    n_pts = len(dist_flat)
+
+    # Geographic coordinates of observation points
+    x_flat = cs.start_x + dist_flat * ux_dir
+    y_flat = cs.start_y + dist_flat * uy_dir
+    z_flat = -depth_flat  # negative below surface (Okada convention)
+
+    # Initialize accumulators
+    total_ux = np.zeros(n_pts)
+    total_uy = np.zeros(n_pts)
+    total_uz = np.zeros(n_pts)
+    total_sxx = np.zeros(n_pts)
+    total_syy = np.zeros(n_pts)
+    total_szz = np.zeros(n_pts)
+    total_syz = np.zeros(n_pts)
+    total_sxz = np.zeros(n_pts)
+    total_sxy = np.zeros(n_pts)
+
+    # Source fault loop (superposition)
+    for fault in model.source_faults:
+        _accumulate_fault(
+            fault, alpha, material.young, material.poisson,
+            x_flat, y_flat, z_flat,
+            total_ux, total_uy, total_uz,
+            total_sxx, total_syy, total_szz,
+            total_syz, total_sxz, total_sxy,
+        )
+
+    # Determine receiver orientation (same logic as compute_grid)
+    receivers = model.receiver_faults
+    if receivers:
+        idx = receiver_index if receiver_index is not None else 0
+        if idx < 0 or idx >= len(receivers):
+            from opencoulomb.exceptions import ValidationError
+            raise ValidationError(
+                f"receiver_index={idx} out of range; "
+                f"model has {len(receivers)} receiver(s) (0..{len(receivers) - 1})"
+            )
+        recv = receivers[idx]
+        geom = compute_fault_geometry(
+            recv.x_start, recv.y_start, recv.x_fin, recv.y_fin,
+            recv.dip, recv.top_depth, recv.bottom_depth,
+        )
+        recv_strike = geom["strike_rad"]
+        recv_dip = geom["dip_rad"]
+        recv_rake = recv.rake_rad
+    else:
+        if receiver_index is not None:
+            from opencoulomb.exceptions import ValidationError
+            raise ValidationError(
+                f"receiver_index={receiver_index} specified but model has no receivers"
+            )
+        src = model.source_faults[0]
+        geom = compute_fault_geometry(
+            src.x_start, src.y_start, src.x_fin, src.y_fin,
+            src.dip, src.top_depth, src.bottom_depth,
+        )
+        recv_strike = geom["strike_rad"]
+        recv_dip = geom["dip_rad"]
+        recv_rake = 0.0
+
+    # Resolve CFS
+    cfs_flat, shear_flat, normal_flat = compute_cfs_on_receiver(
+        total_sxx, total_syy, total_szz,
+        total_syz, total_sxz, total_sxy,
+        recv_strike, recv_dip, recv_rake,
+        material.friction,
+    )
+
+    # Reshape to 2D (n_vert, n_horiz)
+    shape = (n_vert, n_horiz)
+
+    return _CSResult(
+        distance=distance,
+        depth=depth,
+        cfs=cfs_flat.reshape(shape),
+        shear=shear_flat.reshape(shape),
+        normal=normal_flat.reshape(shape),
+        ux=total_ux.reshape(shape),
+        uy=total_uy.reshape(shape),
+        uz=total_uz.reshape(shape),
+        sxx=total_sxx.reshape(shape),
+        syy=total_syy.reshape(shape),
+        szz=total_szz.reshape(shape),
+        syz=total_syz.reshape(shape),
+        sxz=total_sxz.reshape(shape),
+        sxy=total_sxy.reshape(shape),
+        spec=cs,
+    )

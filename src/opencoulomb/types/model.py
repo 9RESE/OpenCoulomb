@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from opencoulomb.types.fault import FaultElement
     from opencoulomb.types.grid import GridSpec
     from opencoulomb.types.material import MaterialProperties
+    from opencoulomb.types.section import CrossSectionSpec
     from opencoulomb.types.stress import RegionalStress
 
 
@@ -35,6 +36,8 @@ class CoulombModel:
         are sources; n_fixed..end are receivers.
     regional_stress : RegionalStress or None
         Background regional stress field. None if not specified.
+    cross_section : CrossSectionSpec or None
+        Cross-section profile specification. None if not specified.
     symmetry : int
         Symmetry flag (1 = none). From .inp file.
     x_sym : float
@@ -49,6 +52,7 @@ class CoulombModel:
     grid: GridSpec
     n_fixed: int
     regional_stress: RegionalStress | None = None
+    cross_section: CrossSectionSpec | None = None
     symmetry: int = 1
     x_sym: float = 0.0
     y_sym: float = 0.0

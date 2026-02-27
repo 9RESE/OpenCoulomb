@@ -561,15 +561,10 @@ class _InpParser:
             grid=grid,
             n_fixed=n_fixed,
             regional_stress=regional_stress,
+            cross_section=self._build_cross_section(),
             symmetry=symmetry,
             x_sym=x_sym,
             y_sym=y_sym,
         )
-
-        # Cross-section is parsed but not stored in CoulombModel (no field).
-        # TODO: Add cross_section field to CoulombModel when cross-section
-        # computation is implemented.  For now, the data is validated but
-        # discarded.
-        self._build_cross_section()
 
         return model
