@@ -27,7 +27,12 @@ Parse a Coulomb `.inp` file and return a fully populated model.
 
 **Returns** `CoulombModel` — immutable dataclass with all model data.
 
-**Raises** `ParseError` if the file cannot be read or is malformed.
+**Raises**
+
+| Exception | Condition |
+|-----------|-----------|
+| `ParseError` | File is malformed or cannot be parsed |
+| `InputError` | File cannot be opened (permissions, missing) |
 
 **Example**
 
@@ -115,7 +120,9 @@ Write a single stress field as a plain text grid (x, y, value per line).
 
 | Name | Type | Values | Description |
 |------|------|--------|-------------|
-| `field` | `str` | `"cfs"`, `"shear"`, `"normal"` | Field to write |
+| `field` | `str` | `"cfs"`, `"shear"`, `"normal"`, `"ux"`, `"uy"`, `"uz"` | Field to write |
+
+**Raises** `OutputError` if the file cannot be written. `ValueError` if `field` is invalid.
 
 ---
 
@@ -130,6 +137,29 @@ def write_summary(result: CoulombResult, model: CoulombModel, path: str | Path) 
 ```
 
 Write a human-readable summary text file with peak values and model metadata.
+
+---
+
+### Exceptions
+
+All exceptions are importable from the top-level package:
+
+```python
+from opencoulomb import ParseError, InputError, OutputError, ComputationError, ValidationError
+```
+
+| Exception | Base | Raised by |
+|-----------|------|-----------|
+| `OpenCoulombError` | `Exception` | Base for all library errors |
+| `InputError` | `OpenCoulombError` | File open failures in `read_inp` |
+| `ParseError` | `InputError` | Malformed `.inp` content |
+| `FormatError` | `InputError` | Unsupported file format |
+| `ValidationError` | `OpenCoulombError` | Invalid parameters (grid, faults, material) |
+| `ConfigError` | `OpenCoulombError` | Configuration issues |
+| `ComputationError` | `OpenCoulombError` | Runtime computation failures |
+| `SingularityError` | `ComputationError` | Numerical singularity |
+| `ConvergenceError` | `ComputationError` | Iterative convergence failure |
+| `OutputError` | `OpenCoulombError` | File write failures |
 
 ---
 
@@ -303,6 +333,30 @@ def dc3d(
 
 Okada (1992) displacement and displacement gradient for a finite rectangular
 fault. Returns a 12-element tuple: `(ux, uy, uz, uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz)`.
+
+### Coordinate utilities
+
+All coordinate functions are exported from `opencoulomb.core`:
+
+```python
+from opencoulomb.core import (
+    compute_fault_geometry,
+    direction_cosines,
+    fault_to_geo_displacement,
+    geo_to_fault,
+    rotation_matrix,
+    strike_dip_to_normal,
+)
+```
+
+| Function | Purpose |
+|----------|---------|
+| `compute_fault_geometry(fault)` | Fault element → Okada geometry dict |
+| `direction_cosines(strike_rad, dip_rad)` | Fault-local unit vectors (Okada convention) |
+| `fault_to_geo_displacement(...)` | Fault-local → geographic displacement |
+| `geo_to_fault(...)` | Geographic → fault-local coordinates |
+| `rotation_matrix(strike_rad, dip_rad)` | 3x3 rotation matrix fault↔geographic |
+| `strike_dip_to_normal(strike_rad, dip_rad)` | Unit normal to fault plane |
 
 ---
 

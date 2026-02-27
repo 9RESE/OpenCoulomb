@@ -34,12 +34,16 @@ with Coulomb 3.4 and downstream tools.
 - **Does not depend on**: `core` or `viz`
 
 ## Conventions
-- The `.inp` parser is a **state machine** with named states (`HEADER`, `MATERIAL`,
-  `SIZE_PARAMS`, `FAULT_TABLE`, `REGIONAL_STRESS`, `CROSS_SECTION`, …)
+- The `.inp` parser is a **state machine** with named states (`START`, `TITLE_LINE2`,
+  `PARAMS`, `FAULT_TABLE`, `GRID_PARAMS`, `SIZE_PARAMS`, `REGIONAL_STRESS`, `CROSS_SECTION`)
+- Parser handler dispatch is built once in `__init__` (dict of state → method)
 - Parser bugs in real Coulomb files handled: `.NNN` floats (no leading zero),
   long em-dashes in headers, `XSYM`/`YSYM` aliases for symmetry keywords
 - Source vs. receiver split: the first `n_fixed` faults in the fault table are
   sources; the remainder are receivers (zero-slip rows)
+- **Error handling**: `read_inp` wraps `OSError` as `InputError`; all writers wrap `OSError` as `OutputError`
 - Output paths are always `pathlib.Path`; writers create parent dirs if needed
+- All writers use `encoding="utf-8"` explicitly; `.cou` writers sanitize multiline titles
 - `.cou` format columns are space-delimited with a fixed 2-line header; units match Coulomb 3.4 (km, bar, m)
-- Encoding fallback: UTF-8 first, then latin-1 (for legacy files with Windows-1252 characters)
+- `.dat` writer supports fields: `cfs`, `shear`, `normal`, `ux`, `uy`, `uz`; validates field name before access
+- Encoding fallback in parser: UTF-8 first, then latin-1 (for legacy files with Windows-1252 characters)

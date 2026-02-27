@@ -12,7 +12,7 @@ model and linear elasticity (Hooke's law).
 | `okada.py` | Pure-NumPy vectorized Okada DC3D (finite fault) and DC3D0 (point source) |
 | `coulomb.py` | CFS formula: `resolve_stress_on_fault`, `compute_cfs`, `compute_cfs_on_receiver` |
 | `stress.py` | `gradients_to_stress` (Hooke's law) and `rotate_stress_tensor` |
-| `coordinates.py` | `compute_fault_geometry`, `fault_to_geo_displacement` (coordinate transforms) |
+| `coordinates.py` | `compute_fault_geometry`, `direction_cosines`, `fault_to_geo_displacement`, `geo_to_fault`, `rotation_matrix`, `strike_dip_to_normal` |
 | `oops.py` | Optimally Oriented Planes: `compute_regional_stress_tensor`, `find_optimal_planes`, `mohr_coulomb_angle` |
 
 ## Key Functions
@@ -54,6 +54,8 @@ model and linear elasticity (Hooke's law).
 - Observation points use **geographic coordinates** (East/North/Up in km)
 - Okada is called in **fault-local** coordinates; `_accumulate_fault` handles the full
   transform: geographic → local → Okada → rotate back → geographic
+- Degenerate faults (zero-length, non-point-source) are skipped with a warning
+- `gradients_to_stress` validates Poisson ratio (0 < nu < 0.5) and Young's modulus (> 0) on entry
 - Superposition: each source fault's contribution is accumulated in-place into total arrays
 - Stress units throughout: **bar** (converted from Pa inside `gradients_to_stress`)
 - Sign convention for CFS: positive shear = promotes slip; positive normal = unclamping

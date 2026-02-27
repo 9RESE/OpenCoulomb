@@ -25,7 +25,7 @@ parse → compute → output pipeline as plain Python values.
   - `slip_1`, `slip_2` — slip amounts in metres; meaning depends on `kode`
   - `is_source` / `is_receiver` — derived from whether slip is non-zero
   - `strike_deg`, `rake_deg`, `length`, `width`, `center_x/y/depth` — computed geometry
-- **`GridSpec`** — observation grid; `n_x`, `n_y`, `n_points` computed from bounds + increment
+- **`GridSpec`** — observation grid; `n_x`, `n_y`, `n_points` computed from bounds + increment using `round()` (matches `np.arange` behavior); validates `depth >= 0`
 - **`MaterialProperties`** — Young's modulus, Poisson's ratio, friction; exposes `alpha` (Okada's elastic constant = `(lambda + mu) / (lambda + 2*mu)`)
 - **`CoulombModel`** — aggregate root; `source_faults` / `receiver_faults` sliced by `n_fixed`
 
@@ -36,7 +36,7 @@ parse → compute → output pipeline as plain Python values.
 - **`CrossSectionResult`** — 2D `(n_vert, n_horiz)` arrays for profile plots
 
 ## Dependencies
-- **Depends on**: `opencoulomb.exceptions` (ValidationError raised in `__post_init__`)
+- **Depends on**: `opencoulomb.exceptions` (ValidationError raised in `__post_init__` for GridSpec, CrossSectionSpec)
 - **Used by**: every other package (`core`, `io`, `viz`, `cli`) — this is the shared vocabulary
 
 ## Conventions

@@ -7,7 +7,7 @@ OpenCoulomb is a Python 3.10+ replacement for the Coulomb 3.4 MATLAB seismology 
 ```bash
 pip install -e ".[dev]"        # Editable install with dev deps
 opencoulomb compute input.inp  # Compute CFS from .inp file
-pytest tests/ -q               # Run all tests (~800)
+pytest tests/ -q               # Run all tests (811)
 ruff check src/                # Lint
 ```
 
@@ -22,7 +22,7 @@ src/opencoulomb/
 ├── viz/            # Matplotlib: maps, faults, sections, displacement, export
 ├── cli/            # Click CLI: compute, plot, info, validate, convert
 ├── _constants.py   # Physical constants
-└── exceptions.py   # ValidationError, ParseError, ComputationError
+└── exceptions.py   # Exception hierarchy (10 classes, all exported from top-level)
 ```
 
 ### Data Flow
@@ -72,7 +72,7 @@ pytest tests/validation/     # End-to-end CLI
 pytest tests/performance/    # Benchmarks
 pytest -m reference          # Coulomb 3.4 reference (skipped until values available)
 ```
-Coverage target: ≥90% overall (currently 95.77%)
+Coverage target: ≥90% overall (currently 94.75%, 811 tests)
 
 ### Code Style
 - ruff (E/W/F/I/B/C4/UP/ARG/SIM/TCH/PTH/S/ASYNC/RUF/PERF)
