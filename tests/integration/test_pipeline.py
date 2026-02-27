@@ -256,6 +256,49 @@ class TestRealInpFiles:
 
 
 # ---------------------------------------------------------------------------
+# CFS regression fixture (simplest_receiver.inp)
+# ---------------------------------------------------------------------------
+
+
+class TestCFSRegression:
+    """Regression test: CFS values at specific grid points must not drift.
+
+    Reference values are from the current validated implementation.
+    If the Okada engine or pipeline changes, these must be updated.
+    """
+
+    # Regression fixture: simplest_receiver.inp
+    # Indices and expected CFS values (bar) at full precision.
+    REGRESSION_INDICES: ClassVar[list[int]] = [0, 930, 1860, 2790, 3720]
+    REGRESSION_CFS: ClassVar[list[float]] = [
+        4.327580964619e-04,
+        2.153917903047e-03,
+        5.030529543622e+00,
+        4.926248264275e-03,
+        6.778592113615e-04,
+    ]
+
+    def test_cfs_regression_simplest_receiver(
+        self, real_inp_files_dir: Path
+    ) -> None:
+        """CFS at 5 grid points must match regression fixtures within 1e-6 bar."""
+        filepath = real_inp_files_dir / "simplest_receiver.inp"
+        if not filepath.exists():
+            pytest.skip(f"File not found: {filepath}")
+
+        model = read_inp(filepath)
+        result = compute_grid(model)
+
+        for idx, expected in zip(self.REGRESSION_INDICES, self.REGRESSION_CFS, strict=True):
+            actual = result.cfs[idx]
+            abs_err = abs(actual - expected)
+            assert abs_err < 1e-6, (
+                f"CFS[{idx}]: actual={actual:.12e}, "
+                f"expected={expected:.12e}, abs_err={abs_err:.2e}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # No-receiver default behavior
 # ---------------------------------------------------------------------------
 
@@ -275,6 +318,113 @@ class TestNoReceiverDefault:
         assert result is not None
         # Default rake should be 0.0 when using source orientation
         assert result.receiver_rake == pytest.approx(0.0, abs=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Receiver index selection
+# ---------------------------------------------------------------------------
+
+
+class TestReceiverIndex:
+    """Test explicit receiver_index parameter for compute_grid."""
+
+    def _make_multi_receiver_inp(self) -> str:
+        """Build .inp with 1 source + 2 receivers with different orientations."""
+        source = (
+            "    1     -10.0       0.0      10.0       0.0  100       1.0"
+            "       0.0    45.0     2.0    12.0  Source\n"
+        )
+        recv1 = (
+            "    2     -15.0       5.0      15.0       5.0  100       0.0"
+            "       0.0    45.0     2.0    12.0  Recv1\n"
+        )
+        recv2 = (
+            "    3       0.0     -10.0       0.0      10.0  100       0.0"
+            "       0.0    80.0     2.0    12.0  Recv2\n"
+        )
+        return _make_inp(n_fixed=1, faults=source + "\n" + recv1 + recv2)
+
+    def test_default_uses_first_receiver(self) -> None:
+        """Default (None) should be identical to receiver_index=0."""
+        model = parse_inp_string(self._make_multi_receiver_inp())
+        r_default = compute_grid(model)
+        r_explicit = compute_grid(model, receiver_index=0)
+
+        np.testing.assert_array_equal(r_default.cfs, r_explicit.cfs)
+        assert r_default.receiver_strike == r_explicit.receiver_strike
+        assert r_default.receiver_dip == r_explicit.receiver_dip
+
+    def test_receiver_index_1_differs_from_0(self) -> None:
+        """Using a different receiver orientation should produce different CFS."""
+        model = parse_inp_string(self._make_multi_receiver_inp())
+        r0 = compute_grid(model, receiver_index=0)
+        r1 = compute_grid(model, receiver_index=1)
+
+        # Different receiver orientations → different CFS
+        assert r0.receiver_dip != pytest.approx(r1.receiver_dip, abs=1.0)
+        assert not np.allclose(r0.cfs, r1.cfs)
+
+    def test_receiver_index_out_of_bounds(self) -> None:
+        """Out-of-bounds receiver_index should raise ValidationError."""
+        from opencoulomb.exceptions import ValidationError
+
+        model = parse_inp_string(self._make_multi_receiver_inp())
+        with pytest.raises(ValidationError, match="out of range"):
+            compute_grid(model, receiver_index=5)
+
+    def test_receiver_index_negative(self) -> None:
+        """Negative receiver_index should raise ValidationError."""
+        from opencoulomb.exceptions import ValidationError
+
+        model = parse_inp_string(self._make_multi_receiver_inp())
+        with pytest.raises(ValidationError, match="out of range"):
+            compute_grid(model, receiver_index=-1)
+
+    def test_receiver_index_on_no_receiver_model(self) -> None:
+        """Specifying receiver_index when no receivers exist should raise."""
+        from opencoulomb.exceptions import ValidationError
+
+        source_only = (
+            "    1     -10.0       0.0      10.0       0.0  100       1.0"
+            "       0.0    45.0     2.0    12.0  Source\n"
+        )
+        model = parse_inp_string(_make_inp(n_fixed=1, faults=source_only))
+        with pytest.raises(ValidationError, match="no receivers"):
+            compute_grid(model, receiver_index=0)
+
+
+# ---------------------------------------------------------------------------
+# No-source-fault error handling
+# ---------------------------------------------------------------------------
+
+
+class TestNoSourceFaults:
+    """Test that compute_grid raises a clear error for zero-fault models."""
+
+    def test_no_sources_raises_computation_error(self) -> None:
+        """Model with zero source faults should raise ComputationError."""
+        from opencoulomb.exceptions import ComputationError
+
+        # Build model with only receivers (n_fixed=0)
+        receiver_only = (
+            "    1     -10.0       0.0      10.0       0.0  100       0.0"
+            "       0.0    45.0     2.0    12.0  Recv\n"
+        )
+        model = parse_inp_string(_make_inp(n_fixed=0, faults=receiver_only))
+        assert model.n_sources == 0
+
+        with pytest.raises(ComputationError, match="no source faults"):
+            compute_grid(model)
+
+    def test_no_faults_at_all_raises_computation_error(self) -> None:
+        """Model with zero faults total should raise ComputationError."""
+        from opencoulomb.exceptions import ComputationError
+
+        model = parse_inp_string(_make_inp(n_fixed=0, faults=""))
+        assert len(model.faults) == 0
+
+        with pytest.raises(ComputationError, match="no source faults"):
+            compute_grid(model)
 
 
 # ---------------------------------------------------------------------------

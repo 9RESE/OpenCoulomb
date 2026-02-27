@@ -94,23 +94,23 @@ def _dccon0(alpha: float, dip_deg: float) -> _OkadaConstants:
 # ---------------------------------------------------------------------------
 
 def _dccon2(
-    xi: NDArray,
-    et: NDArray,
-    q: NDArray,
+    xi: NDArray[np.float64],
+    et: NDArray[np.float64],
+    q: NDArray[np.float64],
     sd: float,
     cd: float,
-    kxi: NDArray,
-    ket: NDArray,
-) -> dict[str, NDArray]:
+    kxi: NDArray[np.float64],
+    ket: NDArray[np.float64],
+) -> dict[str, NDArray[np.float64]]:
     """Compute secondary geometric parameters (Fortran DCCON2), vectorized.
 
     Parameters
     ----------
-    xi, et, q : NDArray (N,)
+    xi, et, q : NDArray[np.float64] (N,)
         Corner-adjusted coordinates.
     sd, cd : float
         sin(dip), cos(dip).
-    kxi, ket : NDArray bool (N,)
+    kxi, ket : NDArray[np.float64] bool (N,)
         Singularity flags for r+xi and r+et.
 
     Returns
@@ -190,10 +190,10 @@ def _dccon2(
 # ---------------------------------------------------------------------------
 
 def _ua(
-    xi: NDArray, et: NDArray, q: NDArray,
+    xi: NDArray[np.float64], et: NDArray[np.float64], q: NDArray[np.float64],
     disl1: float, disl2: float, disl3: float,
-    c: _OkadaConstants, s: dict[str, NDArray],
-) -> NDArray:
+    c: _OkadaConstants, s: dict[str, NDArray[np.float64]],
+) -> NDArray[np.float64]:
     """Part A contribution (Fortran UA), vectorized.
 
     Returns shape (12, N) array.
@@ -285,10 +285,10 @@ def _ua(
 # ---------------------------------------------------------------------------
 
 def _ub(
-    xi: NDArray, et: NDArray, q: NDArray,
+    xi: NDArray[np.float64], et: NDArray[np.float64], q: NDArray[np.float64],
     disl1: float, disl2: float, disl3: float,
-    c: _OkadaConstants, s: dict[str, NDArray],
-) -> NDArray:
+    c: _OkadaConstants, s: dict[str, NDArray[np.float64]],
+) -> NDArray[np.float64]:
     """Part B contribution (Fortran UB), vectorized.
 
     Returns shape (12, N) array.
@@ -419,10 +419,10 @@ def _ub(
 # ---------------------------------------------------------------------------
 
 def _uc(
-    xi: NDArray, et: NDArray, q: NDArray, z: NDArray,
+    xi: NDArray[np.float64], et: NDArray[np.float64], q: NDArray[np.float64], z: NDArray[np.float64],
     disl1: float, disl2: float, disl3: float,
-    c: _OkadaConstants, s: dict[str, NDArray],
-) -> NDArray:
+    c: _OkadaConstants, s: dict[str, NDArray[np.float64]],
+) -> NDArray[np.float64]:
     """Part C contribution (Fortran UC), vectorized.
 
     Returns shape (12, N) array.
@@ -550,9 +550,9 @@ def _uc(
 
 def dc3d(
     alpha: float,
-    x: NDArray | float,
-    y: NDArray | float,
-    z: NDArray | float,
+    x: NDArray[np.float64] | float,
+    y: NDArray[np.float64] | float,
+    z: NDArray[np.float64] | float,
     depth: float,
     dip: float,
     al1: float,
@@ -562,10 +562,10 @@ def dc3d(
     disl1: float,
     disl2: float,
     disl3: float,
-) -> tuple[NDArray, NDArray, NDArray,
-           NDArray, NDArray, NDArray,
-           NDArray, NDArray, NDArray,
-           NDArray, NDArray, NDArray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
     """Compute displacement and gradients for a finite rectangular fault.
 
     Implements Okada (1992) DC3D: displacement field u_i and displacement
@@ -736,9 +736,9 @@ def dc3d(
 # ============================================================================
 
 def _dccon1(
-    x: NDArray, y: NDArray, d: NDArray,
+    x: NDArray[np.float64], y: NDArray[np.float64], d: NDArray[np.float64],
     sd: float, cd: float,
-) -> tuple[NDArray, NDArray, NDArray, NDArray, NDArray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
     """Compute point-source geometry constants (Fortran DCCON1), vectorized.
 
     Returns (r, p, q, s, t).
@@ -752,11 +752,11 @@ def _dccon1(
 
 
 def _ua0(
-    x: NDArray, y: NDArray, d: NDArray,
+    x: NDArray[np.float64], y: NDArray[np.float64], d: NDArray[np.float64],
     pot1: float, pot2: float, pot3: float, pot4: float,
     sd: float, cd: float,
     co: _OkadaConstants,
-) -> NDArray:
+) -> NDArray[np.float64]:
     """Part A for point source (Fortran UA0), vectorized.
 
     Returns shape (12, N).
@@ -865,11 +865,11 @@ def _ua0(
 
 
 def _ub0(
-    x: NDArray, y: NDArray, d: NDArray, z: NDArray,
+    x: NDArray[np.float64], y: NDArray[np.float64], d: NDArray[np.float64], z: NDArray[np.float64],
     pot1: float, pot2: float, pot3: float, pot4: float,
     sd: float, cd: float,
     co: _OkadaConstants,
-) -> NDArray:
+) -> NDArray[np.float64]:
     """Part B for point source (Fortran UB0), vectorized.
 
     Returns shape (12, N).
@@ -999,11 +999,11 @@ def _ub0(
 
 
 def _uc0(
-    x: NDArray, y: NDArray, d: NDArray, z: NDArray,
+    x: NDArray[np.float64], y: NDArray[np.float64], d: NDArray[np.float64], z: NDArray[np.float64],
     pot1: float, pot2: float, pot3: float, pot4: float,
     sd: float, cd: float,
     co: _OkadaConstants,
-) -> NDArray:
+) -> NDArray[np.float64]:
     """Part C for point source (Fortran UC0), vectorized.
 
     Returns shape (12, N).
@@ -1125,19 +1125,19 @@ def _uc0(
 
 def dc3d0(
     alpha: float,
-    x: NDArray | float,
-    y: NDArray | float,
-    z: NDArray | float,
+    x: NDArray[np.float64] | float,
+    y: NDArray[np.float64] | float,
+    z: NDArray[np.float64] | float,
     depth: float,
     dip: float,
     pot1: float,
     pot2: float,
     pot3: float,
     pot4: float,
-) -> tuple[NDArray, NDArray, NDArray,
-           NDArray, NDArray, NDArray,
-           NDArray, NDArray, NDArray,
-           NDArray, NDArray, NDArray]:
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
     """Compute displacement and gradients for a point dislocation source.
 
     Implements Okada (1992) DC3D0: point source variant.

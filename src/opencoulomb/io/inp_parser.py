@@ -14,6 +14,10 @@ from __future__ import annotations
 import re
 from enum import Enum, auto
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from opencoulomb.exceptions import ParseError
 from opencoulomb.types.fault import FaultElement, Kode
@@ -180,7 +184,7 @@ class _InpParser:
 
     def _dispatch(self, line: str) -> None:
         """Dispatch a single line to the current state handler."""
-        handler = {
+        handler: dict[_ParserState, Callable[[str], None]] = {
             _ParserState.START: self._on_start,
             _ParserState.TITLE_LINE2: self._on_title_line2,
             _ParserState.PARAMS: self._on_params,
@@ -295,12 +299,14 @@ class _InpParser:
         self._parse_fault_line(line)
 
     def _on_grid(self, line: str) -> None:
-        """Parse grid parameter lines."""
+        """Parse grid parameter lines.
+
+        Stays in GRID state across blank lines so that "Size Parameters"
+        sections (which appear between Grid Parameters and Cross Section)
+        are consumed without premature state transition.
+        """
         stripped = line.strip()
         if not stripped:
-            # Blank line after grid means done with grid, check for cross section
-            if self._grid_params:
-                self._state = _ParserState.CROSS_SECTION
             return
         if stripped.lower().startswith("grid parameters"):
             return  # skip the keyword line itself

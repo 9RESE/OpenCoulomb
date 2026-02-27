@@ -26,6 +26,7 @@ from opencoulomb.core.coordinates import compute_fault_geometry, fault_to_geo_di
 from opencoulomb.core.coulomb import compute_cfs_on_receiver
 from opencoulomb.core.okada import dc3d, dc3d0
 from opencoulomb.core.stress import gradients_to_stress, rotate_stress_tensor
+from opencoulomb.exceptions import ComputationError
 from opencoulomb.types.fault import FaultElement, Kode
 from opencoulomb.types.result import CoulombResult, ElementResult, StressResult
 
@@ -33,19 +34,44 @@ if TYPE_CHECKING:
     from opencoulomb.types.model import CoulombModel
 
 
-def compute_grid(model: CoulombModel) -> CoulombResult:
+def compute_grid(
+    model: CoulombModel,
+    receiver_index: int | None = None,
+) -> CoulombResult:
     """Run the full CFS computation on a grid.
+
+    Grid CFS is resolved onto a single receiver fault orientation,
+    matching Coulomb 3.4 behavior. Use ``compute_element_cfs`` for
+    per-receiver CFS at element centers.
 
     Parameters
     ----------
     model : CoulombModel
         Fully populated model from .inp parser.
+    receiver_index : int or None
+        Which receiver fault to use for resolving grid CFS.
+        ``None`` (default) uses the first receiver (index 0), or
+        falls back to the first source fault orientation if no
+        receivers exist.
 
     Returns
     -------
     CoulombResult
         Complete result with stress, displacement, and CFS on the grid.
+
+    Raises
+    ------
+    ComputationError
+        If the model has no source faults.
+    ValidationError
+        If *receiver_index* is out of bounds.
     """
+    if not model.source_faults:
+        raise ComputationError(
+            "Model has no source faults; cannot compute grid CFS. "
+            "At least one source fault with non-zero slip is required."
+        )
+
     grid = model.grid
     material = model.material
 
@@ -94,10 +120,17 @@ def compute_grid(model: CoulombModel) -> CoulombResult:
     )
 
     # 4. Resolve CFS on receiver faults
-    # Use first receiver fault orientation for grid CFS, or default
+    # Grid CFS uses a single receiver orientation (Coulomb 3.4 behavior).
     receivers = model.receiver_faults
     if receivers:
-        recv = receivers[0]
+        idx = receiver_index if receiver_index is not None else 0
+        if idx < 0 or idx >= len(receivers):
+            from opencoulomb.exceptions import ValidationError
+            raise ValidationError(
+                f"receiver_index={idx} out of range; "
+                f"model has {len(receivers)} receiver(s) (0..{len(receivers) - 1})"
+            )
+        recv = receivers[idx]
         geom = compute_fault_geometry(
             recv.x_start, recv.y_start, recv.x_fin, recv.y_fin,
             recv.dip, recv.top_depth, recv.bottom_depth,
@@ -106,6 +139,11 @@ def compute_grid(model: CoulombModel) -> CoulombResult:
         recv_dip = geom["dip_rad"]
         recv_rake = recv.rake_rad
     else:
+        if receiver_index is not None:
+            from opencoulomb.exceptions import ValidationError
+            raise ValidationError(
+                f"receiver_index={receiver_index} specified but model has no receivers"
+            )
         # Default: use first source fault orientation with 0 rake
         src = model.source_faults[0]
         geom = compute_fault_geometry(

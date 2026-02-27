@@ -16,7 +16,6 @@ import time
 from typing import ClassVar
 
 import numpy as np
-import pytest
 
 from opencoulomb.core.okada import dc3d, dc3d0
 
@@ -55,27 +54,6 @@ class TestDC3DReferenceCase:
             disl1=1.0, disl2=0.0, disl3=0.0,
         )
 
-    def test_strike_slip_ux(self) -> None:
-        """ux for strike-slip reference case."""
-        result = self._run_strike_slip()
-        ux = result[0][0]
-        # Okada Table 2: ux = -8.689e-3 m
-        assert ux == pytest.approx(-8.689e-3, abs=1e-5)
-
-    def test_strike_slip_uy(self) -> None:
-        """uy for strike-slip reference case."""
-        result = self._run_strike_slip()
-        uy = result[1][0]
-        # Okada Table 2: uy = -4.298e-3 m
-        assert uy == pytest.approx(-4.298e-3, abs=1e-5)
-
-    def test_strike_slip_uz(self) -> None:
-        """uz for strike-slip reference case."""
-        result = self._run_strike_slip()
-        uz = result[2][0]
-        # Okada Table 2: uz = -2.747e-3 m
-        assert uz == pytest.approx(-2.747e-3, abs=1e-5)
-
     def test_returns_twelve_components(self) -> None:
         """DC3D must return exactly 12 arrays (3 disp + 9 gradients)."""
         result = self._run_strike_slip()
@@ -86,6 +64,151 @@ class TestDC3DReferenceCase:
         result = self._run_strike_slip()
         for i, arr in enumerate(result):
             assert np.all(np.isfinite(arr)), f"Component {i} has non-finite values"
+
+
+# ---------------------------------------------------------------------------
+# Full Table 2 validation (all 12 components x 3 slip types)
+# ---------------------------------------------------------------------------
+
+
+class TestOkadaTable2FullValidation:
+    """Validate all 12 output components against Okada (1992) Table 2.
+
+    Reference: Okada, Y. (1992), Table 2.
+    Case: alpha=2/3, x=2, y=3, z=0, depth=4, dip=70,
+          al1=0, al2=3, aw1=0, aw2=2.
+
+    Published values have 4 significant figures. We validate at relative
+    tolerance 5e-4 (matching the table precision), then additionally store
+    regression fixtures at full numerical precision (≤1e-10 relative error).
+    """
+
+    ALPHA: ClassVar[float] = 2.0 / 3.0
+    X: ClassVar[float] = 2.0
+    Y: ClassVar[float] = 3.0
+    Z: ClassVar[float] = 0.0
+    DEPTH: ClassVar[float] = 4.0
+    DIP: ClassVar[float] = 70.0
+    AL1: ClassVar[float] = 0.0
+    AL2: ClassVar[float] = 3.0
+    AW1: ClassVar[float] = 0.0
+    AW2: ClassVar[float] = 2.0
+
+    LABELS: ClassVar[list[str]] = [
+        "ux", "uy", "uz", "uxx", "uyx", "uzx",
+        "uxy", "uyy", "uzy", "uxz", "uyz", "uzz",
+    ]
+
+    # Okada (1992) Table 2: Case I (strike-slip, disl1=1)
+    # Values in meters (displacement) or dimensionless (gradients x km)
+    TABLE2_STRIKE_SLIP: ClassVar[list[float]] = [
+        -8.689e-3, -4.298e-3, -2.747e-3,   # ux, uy, uz
+        -1.220e-3, -8.191e-3, -5.175e-3,   # uxx, uyx, uzx
+        -7.035e-3,  1.741e-3, -5.506e-4,   # uxy, uyy, uzy
+         1.193e-3,  6.503e-4,  2.567e-4,   # uxz, uyz, uzz
+    ]
+
+    # Okada (1992) Table 2: Case II (dip-slip, disl2=1)
+    TABLE2_DIP_SLIP: ClassVar[list[float]] = [
+        -4.682e-3, -3.527e-2, -3.564e-2,
+        -8.867e-3,  4.057e-3,  4.088e-3,
+        -1.519e-4, -1.035e-2,  2.626e-3,
+        -4.088e-3, -2.626e-3,  6.407e-3,
+    ]
+
+    # Okada (1992) Table 2: Case III (tensile, disl3=1)
+    TABLE2_TENSILE: ClassVar[list[float]] = [
+        -2.660e-4,  1.056e-2,  3.214e-3,
+        -5.655e-4, -1.066e-3, -3.730e-4,
+        -4.782e-4,  1.230e-2,  1.040e-2,
+        -6.325e-4, -1.040e-2, -3.911e-3,
+    ]
+
+    # Regression fixtures at full computation precision
+    REGRESSION_STRIKE_SLIP: ClassVar[list[float]] = [
+        -8.6891650043e-03, -4.2975821897e-03, -2.7474058276e-03,
+        -1.2204386753e-03, -8.1913728793e-03, -5.1749686957e-03,
+        -7.0352896574e-03,  1.7405219243e-03, -5.5057060356e-04,
+         1.1934037606e-03,  6.5032393833e-04,  2.5671009500e-04,
+    ]
+
+    REGRESSION_DIP_SLIP: ClassVar[list[float]] = [
+        -4.6823487628e-03, -3.5267267969e-02, -3.5638557673e-02,
+        -8.8672455279e-03,  4.0565856176e-03,  4.0881284900e-03,
+        -1.5185823218e-04, -1.0354876542e-02,  2.6262547875e-03,
+        -4.0881284900e-03, -2.6262547875e-03,  6.4073740234e-03,
+    ]
+
+    REGRESSION_TENSILE: ClassVar[list[float]] = [
+        -2.6599600964e-04,  1.0564074877e-02,  3.2141931142e-03,
+        -5.6549547621e-04, -1.0662137960e-03, -3.7302193517e-04,
+        -4.7819145692e-04,  1.2297109857e-02,  1.0400955547e-02,
+        -6.3248016088e-04, -1.0400955547e-02, -3.9105381268e-03,
+    ]
+
+    def _run(self, disl1: float, disl2: float, disl3: float) -> tuple:
+        return dc3d(
+            self.ALPHA, self.X, self.Y, self.Z,
+            self.DEPTH, self.DIP,
+            self.AL1, self.AL2, self.AW1, self.AW2,
+            disl1=disl1, disl2=disl2, disl3=disl3,
+        )
+
+    def _check_table2(
+        self, result: tuple, ref: list[float], case_name: str,
+    ) -> None:
+        """Check against Table 2 published values (4 sig fig, ~5e-4 rtol)."""
+        for i, (lbl, ref_val) in enumerate(zip(self.LABELS, ref, strict=True)):
+            computed = float(result[i][0])
+            if abs(ref_val) > 1e-15:
+                rel_err = abs((computed - ref_val) / ref_val)
+                assert rel_err < 5e-4, (
+                    f"{case_name} {lbl}: computed={computed:.6e}, "
+                    f"ref={ref_val:.3e}, rel_err={rel_err:.2e}"
+                )
+
+    def _check_regression(
+        self, result: tuple, ref: list[float], case_name: str,
+    ) -> None:
+        """Check against regression fixtures at ≤1e-10 relative error."""
+        for i, (lbl, ref_val) in enumerate(zip(self.LABELS, ref, strict=True)):
+            computed = float(result[i][0])
+            if abs(ref_val) > 1e-15:
+                rel_err = abs((computed - ref_val) / ref_val)
+                assert rel_err < 1e-10, (
+                    f"{case_name} {lbl}: computed={computed:.12e}, "
+                    f"regression={ref_val:.12e}, rel_err={rel_err:.2e}"
+                )
+
+    def test_strike_slip_table2(self) -> None:
+        """Strike-slip (Case I): all 12 components vs Table 2."""
+        result = self._run(1.0, 0.0, 0.0)
+        self._check_table2(result, self.TABLE2_STRIKE_SLIP, "Strike-slip")
+
+    def test_dip_slip_table2(self) -> None:
+        """Dip-slip (Case II): all 12 components vs Table 2."""
+        result = self._run(0.0, 1.0, 0.0)
+        self._check_table2(result, self.TABLE2_DIP_SLIP, "Dip-slip")
+
+    def test_tensile_table2(self) -> None:
+        """Tensile (Case III): all 12 components vs Table 2."""
+        result = self._run(0.0, 0.0, 1.0)
+        self._check_table2(result, self.TABLE2_TENSILE, "Tensile")
+
+    def test_strike_slip_regression(self) -> None:
+        """Strike-slip (Case I): all 12 components at ≤1e-10 rel error."""
+        result = self._run(1.0, 0.0, 0.0)
+        self._check_regression(result, self.REGRESSION_STRIKE_SLIP, "Strike-slip")
+
+    def test_dip_slip_regression(self) -> None:
+        """Dip-slip (Case II): all 12 components at ≤1e-10 rel error."""
+        result = self._run(0.0, 1.0, 0.0)
+        self._check_regression(result, self.REGRESSION_DIP_SLIP, "Dip-slip")
+
+    def test_tensile_regression(self) -> None:
+        """Tensile (Case III): all 12 components at ≤1e-10 rel error."""
+        result = self._run(0.0, 0.0, 1.0)
+        self._check_regression(result, self.REGRESSION_TENSILE, "Tensile")
 
 
 # ---------------------------------------------------------------------------

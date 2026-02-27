@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
 
+    from opencoulomb.types.fault import FaultElement
+
 
 @dataclass(slots=True)
 class StressResult:
@@ -118,7 +120,7 @@ class ElementResult:
         Normal stress at each receiver (bar).
     """
 
-    elements: list  # list[FaultElement], avoid circular import at class level
+    elements: list[FaultElement]
     cfs: NDArray[np.float64]
     shear: NDArray[np.float64]
     normal: NDArray[np.float64]

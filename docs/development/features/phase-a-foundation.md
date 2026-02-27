@@ -58,14 +58,9 @@ opencoulomb/                        # Repository root
 │   │   └── inp_files/
 │   │       ├── simple_strike_slip.inp      # Minimal synthetic file
 │   │       ├── thrust_with_section.inp     # Synthetic with cross-section
-│   │       └── real/                       # 7 real files from kmaterna/elastic_stresses_py
-│   │           ├── M6.5.inp
-│   │           ├── M6p8.inp
-│   │           ├── simple_receiver_bm.inp
-│   │           ├── simplest_receiver.inp
-│   │           ├── simple_subfaulted.inp
-│   │           ├── test_case_receiver.inp
-│   │           └── test_case_subfaulted.inp
+│   │       ├── real/                       # 7 real files from kmaterna/elastic_stresses_py
+│   │       ├── coulomb34/                  # 20 files from coulomb3402.zip distribution
+│   │       └── usgs_finite_fault/          # 3 USGS finite-fault archive files
 │   ├── integration/
 │   │   └── test_inp_parsing.py     # 263 integration/real-file tests
 │   ├── unit/
@@ -305,7 +300,9 @@ Hypothesis strategies used in unit tests: `st.floats`, `st.text`, `st.integers`,
 
 ## Real Data Validation
 
-After the initial 10 tasks were complete (301 tests, 95% coverage), the parser was validated against 7 real Coulomb `.inp` files downloaded from the `kmaterna/elastic_stresses_py` repository. These files exposed 4 parser bugs that were not covered by synthetic test cases:
+After the initial 10 tasks were complete (301 tests, 95% coverage), the parser was validated against 7 real Coulomb `.inp` files downloaded from the `kmaterna/elastic_stresses_py` repository. These files exposed 4 parser bugs that were not covered by synthetic test cases.
+
+During the Phase A/B code review remediation, the parser was further validated against the full Coulomb 3.4 distribution (20 files from `coulomb3402.zip`) plus 3 USGS finite-fault `.inp` files. This exposed a 5th parser bug (see Bug 5 below). All 30 fixture files now parse and compute successfully.
 
 ### Bug 1: `_KV_RE` — Values Without Leading Digit
 
@@ -337,6 +334,14 @@ After the initial 10 tasks were complete (301 tests, 95% coverage), the parser w
 
 **Fix:** Added `XSYM`/`YSYM` as recognized aliases in `_build_model()`, mapping them to `x_sym`/`y_sym` on `CoulombModel`.
 
+### Bug 5: Blank-Line Grid State Transition (found during A/B review remediation)
+
+**Problem:** USGS finite-fault `.inp` files include a blank line between the "Grid Parameters" and "Size Parameters" sections. The parser's `_on_grid` handler was transitioning to CROSS_SECTION state on any blank line when grid params were populated. This caused the Size Parameters numbered lines (indices 1-3) to be misinterpreted as cross-section data, producing `Missing cross-section parameters: [4, 5, 6, 7]`.
+
+**Real file trigger:** All 3 USGS finite-fault files (layout: Grid params → blank → Size Parameters → blank → Cross Section).
+
+**Fix:** Removed the blank-line transition from `_on_grid`. The handler now stays in GRID state across blank lines and only transitions on explicit "Cross section" or "Map info" keywords. The existing guard (`idx <= 6 and idx not in self._grid_params`) already prevented Size Parameters from overwriting grid params.
+
 ---
 
 ## Known Limitations and TODOs
@@ -354,10 +359,10 @@ The following items are known to be incomplete at the end of Phase A. They are n
 | Coulomb 3.4 `.inp` reference outputs | Phase B | Needed for integration accuracy tests |
 | `_on_stress` state handler | Phase B | State defined, handler is a no-op pass; stress extracted from `_param_text` |
 
-**Outstanding blockers (from project plan):**
+**Outstanding blockers (from project plan) — RESOLVED during Phase A/B review:**
 
-- Obtain Coulomb 3.4 compiled binary + example files to generate reference output values
-- Transcribe Okada (1992) Table 2 exact reference values for Task 014
+- ~~Obtain Coulomb 3.4 compiled binary + example files~~ — Downloaded coulomb3402.zip, extracted all 20 example .inp files
+- ~~Transcribe Okada (1992) Table 2 exact reference values~~ — Full Table 2 validated (12 components × 3 slip types) at ≤1e-10 relative error
 
 ---
 
@@ -371,5 +376,7 @@ The following items are known to be incomplete at the end of Phase A. They are n
 | io/ coverage | ≥ 90% | 92% |
 | Ruff lint violations | 0 | 0 |
 | Real file validation | Pass 7 files | Pass (after 4 bug fixes) |
+| Coulomb 3.4 distribution | 20/20 files | Pass (after 5th bug fix) |
+| USGS finite-fault files | 3/3 files | Pass |
 
 Phase A quality gate: **PASSED**.

@@ -14,6 +14,8 @@ TESTS_DIR = Path(__file__).parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
 INP_FILES_DIR = FIXTURES_DIR / "inp_files"
 REAL_INP_FILES_DIR = INP_FILES_DIR / "real"
+COULOMB34_INP_DIR = INP_FILES_DIR / "coulomb34"
+USGS_FF_INP_DIR = INP_FILES_DIR / "usgs_finite_fault"
 REFERENCE_OUTPUTS_DIR = FIXTURES_DIR / "reference_outputs"
 OKADA_REFERENCE_DIR = FIXTURES_DIR / "okada_reference"
 
@@ -40,6 +42,18 @@ def reference_outputs_dir() -> Path:
 def real_inp_files_dir() -> Path:
     """Return the absolute path to the real Coulomb .inp files directory."""
     return REAL_INP_FILES_DIR
+
+
+@pytest.fixture(scope="session")
+def coulomb34_inp_dir() -> Path:
+    """Return the absolute path to Coulomb 3.4 distribution example files."""
+    return COULOMB34_INP_DIR
+
+
+@pytest.fixture(scope="session")
+def usgs_ff_inp_dir() -> Path:
+    """Return the absolute path to USGS finite-fault .inp files."""
+    return USGS_FF_INP_DIR
 
 
 @pytest.fixture(scope="session")
