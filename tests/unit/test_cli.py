@@ -46,8 +46,10 @@ class TestCliGroup:
     def test_subcommands_listed(self, runner: CliRunner) -> None:
         result = runner.invoke(cli, ["--help"])
         assert "compute" in result.output
+        assert "convert" in result.output
         assert "plot" in result.output
         assert "info" in result.output
+        assert "validate" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -260,3 +262,87 @@ class TestVizExports:
         ]
         for name in expected:
             assert hasattr(viz, name), f"Missing export: {name}"
+
+
+# ---------------------------------------------------------------------------
+# Validate command
+# ---------------------------------------------------------------------------
+
+
+class TestValidateCommand:
+    def test_validate_valid_file(self, runner: CliRunner, inp_file: Path) -> None:
+        result = runner.invoke(cli, ["validate", str(inp_file)])
+        assert result.exit_code == 0
+        assert "Model:" in result.output
+        assert "Summary:" in result.output
+
+    def test_validate_missing_file(self, runner: CliRunner) -> None:
+        result = runner.invoke(cli, ["validate", "/nonexistent/file.inp"])
+        assert result.exit_code != 0
+
+    def test_validate_verbose(self, runner: CliRunner, inp_file: Path) -> None:
+        result = runner.invoke(cli, ["validate", str(inp_file), "-v"])
+        assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# Convert command
+# ---------------------------------------------------------------------------
+
+
+class TestConvertCommand:
+    def test_convert_to_csv(
+        self, runner: CliRunner, inp_file: Path, tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "output.csv"
+        result = runner.invoke(cli, [
+            "convert", str(inp_file), "-f", "csv", "-o", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+
+    def test_convert_to_cou(
+        self, runner: CliRunner, inp_file: Path, tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "output.cou"
+        result = runner.invoke(cli, [
+            "convert", str(inp_file), "-f", "cou", "-o", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+
+    def test_convert_to_dat(
+        self, runner: CliRunner, inp_file: Path, tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "output.dat"
+        result = runner.invoke(cli, [
+            "convert", str(inp_file), "-f", "dat", "-o", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+
+    def test_convert_to_summary(
+        self, runner: CliRunner, inp_file: Path, tmp_path: Path,
+    ) -> None:
+        output = tmp_path / "output.txt"
+        result = runner.invoke(cli, [
+            "convert", str(inp_file), "-f", "summary", "-o", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+
+    def test_convert_default_output_path(
+        self, runner: CliRunner, inp_file: Path, tmp_path: Path,
+    ) -> None:
+        import shutil
+
+        tmp_inp = tmp_path / inp_file.name
+        shutil.copy(inp_file, tmp_inp)
+        result = runner.invoke(cli, [
+            "convert", str(tmp_inp), "-f", "csv",
+        ])
+        assert result.exit_code == 0
+
+    def test_convert_missing_format(self, runner: CliRunner, inp_file: Path) -> None:
+        result = runner.invoke(cli, ["convert", str(inp_file)])
+        assert result.exit_code != 0

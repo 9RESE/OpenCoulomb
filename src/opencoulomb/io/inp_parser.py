@@ -524,14 +524,21 @@ class _InpParser:
         if missing:
             raise self._error(f"Missing cross-section parameters: {sorted(missing)}")
 
+        # Coulomb 3.4 cross-section parameters:
+        #   1-4: Start/finish XY coordinates of the profile line
+        #   5: Distance increment along profile (horizontal spacing)
+        #   6: Z-depth (maximum depth; negative = below surface in C3.4 convention)
+        #   7: Z-increment (vertical spacing)
+        # Our CrossSectionSpec uses depth_min=0 (surface) and positive depth_max.
+        z_depth = self._cross_section_params[6]
         return CrossSectionSpec(
             start_x=self._cross_section_params[1],
             start_y=self._cross_section_params[2],
             finish_x=self._cross_section_params[3],
             finish_y=self._cross_section_params[4],
-            depth_min=self._cross_section_params[5],
-            depth_max=self._cross_section_params[6],
-            z_inc=self._cross_section_params[7],
+            depth_min=0.0,
+            depth_max=abs(z_depth),
+            z_inc=abs(self._cross_section_params[7]),
         )
 
     def _build_model(self) -> CoulombModel:

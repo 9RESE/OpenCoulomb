@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from opencoulomb.exceptions import ValidationError
+
 if TYPE_CHECKING:
     import numpy as np
     from numpy.typing import NDArray
@@ -35,6 +37,16 @@ class CrossSectionSpec:
     depth_min: float
     depth_max: float
     z_inc: float
+
+    def __post_init__(self) -> None:
+        if self.depth_min < 0:
+            raise ValidationError(f"depth_min must be >= 0, got {self.depth_min}")
+        if self.depth_max <= self.depth_min:
+            raise ValidationError(
+                f"depth_max ({self.depth_max}) must exceed depth_min ({self.depth_min})"
+            )
+        if self.z_inc <= 0:
+            raise ValidationError(f"z_inc must be positive, got {self.z_inc}")
 
 
 @dataclass(slots=True)

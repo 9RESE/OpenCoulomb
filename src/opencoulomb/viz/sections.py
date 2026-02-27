@@ -35,6 +35,9 @@ def plot_cross_section(
         fig, ax = create_figure(figsize=(12, 6))
     else:
         fig = ax.get_figure()
+        if fig is None:
+            msg = "Axes has no parent figure"
+            raise ValueError(msg)
 
     field_map = {"cfs": section.cfs, "shear": section.shear, "normal": section.normal}
     data = field_map[field]

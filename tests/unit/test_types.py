@@ -1122,6 +1122,41 @@ class TestValidationError:
         with pytest.raises(ValidationError):
             MaterialProperties(poisson=0.0)
 
+    def test_raised_by_section_negative_depth_min(self) -> None:
+        with pytest.raises(ValidationError, match="depth_min"):
+            CrossSectionSpec(
+                start_x=0, start_y=0, finish_x=10, finish_y=0,
+                depth_min=-1.0, depth_max=10.0, z_inc=1.0,
+            )
+
+    def test_raised_by_section_inverted_depths(self) -> None:
+        with pytest.raises(ValidationError, match="depth_max"):
+            CrossSectionSpec(
+                start_x=0, start_y=0, finish_x=10, finish_y=0,
+                depth_min=10.0, depth_max=5.0, z_inc=1.0,
+            )
+
+    def test_raised_by_section_equal_depths(self) -> None:
+        with pytest.raises(ValidationError, match="depth_max"):
+            CrossSectionSpec(
+                start_x=0, start_y=0, finish_x=10, finish_y=0,
+                depth_min=5.0, depth_max=5.0, z_inc=1.0,
+            )
+
+    def test_raised_by_section_zero_z_inc(self) -> None:
+        with pytest.raises(ValidationError, match="z_inc"):
+            CrossSectionSpec(
+                start_x=0, start_y=0, finish_x=10, finish_y=0,
+                depth_min=0.0, depth_max=10.0, z_inc=0.0,
+            )
+
+    def test_raised_by_section_negative_z_inc(self) -> None:
+        with pytest.raises(ValidationError, match="z_inc"):
+            CrossSectionSpec(
+                start_x=0, start_y=0, finish_x=10, finish_y=0,
+                depth_min=0.0, depth_max=10.0, z_inc=-1.0,
+            )
+
 
 # ---------------------------------------------------------------------------
 # 17. Property-based tests (Hypothesis)

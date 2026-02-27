@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
@@ -40,7 +40,7 @@ def save_figure(
         msg = f"Unsupported format '{suffix}'. Use one of: {sorted(_SUPPORTED_FORMATS)}"
         raise ValueError(msg)
 
-    kwargs: dict = {"bbox_inches": "tight", "pad_inches": 0.1, "transparent": transparent}
+    kwargs: dict[str, Any] = {"bbox_inches": "tight", "pad_inches": 0.1, "transparent": transparent}
     if dpi is not None:
         kwargs["dpi"] = dpi
 

@@ -75,6 +75,9 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers -v"
+markers = [
+    "reference: Coulomb 3.4 reference validation tests (awaiting reference values)",
+]
 
 [tool.coverage.run]
 source = ["src/opencoulomb"]

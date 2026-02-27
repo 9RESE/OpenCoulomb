@@ -26,6 +26,9 @@ def plot_fault_traces(
         fig, ax = create_figure()
     else:
         fig = ax.get_figure()
+        if fig is None:
+            msg = "Axes has no parent figure"
+            raise ValueError(msg)
 
     for fault in model.source_faults:
         ax.plot(

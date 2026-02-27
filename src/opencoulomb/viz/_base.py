@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
+    from matplotlib.cm import ScalarMappable
     from matplotlib.colorbar import Colorbar
     from matplotlib.figure import Figure
-    from matplotlib.image import AxesImage
 
 
 def create_figure(
@@ -23,7 +23,7 @@ def create_figure(
 
 
 def add_colorbar(
-    mappable: AxesImage,
+    mappable: ScalarMappable,
     ax: Axes,
     label: str = "",
     **kwargs: Any,

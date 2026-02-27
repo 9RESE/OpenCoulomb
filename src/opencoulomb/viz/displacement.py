@@ -40,6 +40,9 @@ def plot_displacement(
         fig, ax = create_figure()
     else:
         fig = ax.get_figure()
+        if fig is None:
+            msg = "Axes has no parent figure"
+            raise ValueError(msg)
 
     grid = model.grid
     n_y, n_x = result.grid_shape

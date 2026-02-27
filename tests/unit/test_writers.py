@@ -354,3 +354,56 @@ class TestDatWriter:
         text = path.read_text()
         # Should have 2 segment markers
         assert text.count("> ") == 2
+
+    def test_fault_polygon_vertical_dip(self, tmp_path: Path) -> None:
+        """Vertical fault polygon should collapse to trace (4 corners on trace)."""
+        from opencoulomb.io.dat_writer import _fault_polygon_corners
+
+        fault = FaultElement(
+            x_start=-5, y_start=0, x_fin=5, y_fin=0,
+            kode=Kode.STANDARD, slip_1=1.0, slip_2=0.0,
+            dip=90.0, top_depth=0.0, bottom_depth=10.0,
+        )
+        corners = _fault_polygon_corners(fault)
+        assert len(corners) == 4
+        # All y-coords should be 0 (no offset for vertical dip)
+        for _cx, cy in corners:
+            assert cy == pytest.approx(0.0, abs=1e-9)
+
+    def test_fault_polygon_45_dip(self, tmp_path: Path) -> None:
+        """45-degree dipping fault should have bottom corners offset perpendicular to strike."""
+        from opencoulomb.io.dat_writer import _fault_polygon_corners
+
+        fault = FaultElement(
+            x_start=0, y_start=0, x_fin=10, y_fin=0,
+            kode=Kode.STANDARD, slip_1=1.0, slip_2=0.0,
+            dip=45.0, top_depth=0.0, bottom_depth=10.0,
+        )
+        corners = _fault_polygon_corners(fault)
+        assert len(corners) == 4
+        # Top corners (idx 0,1) should be on trace (y=0)
+        assert corners[0][1] == pytest.approx(0.0, abs=1e-9)
+        assert corners[1][1] == pytest.approx(0.0, abs=1e-9)
+        # Bottom corners (idx 2,3) should be offset by ~10 km (depth/tan(45°)=10)
+        assert corners[2][1] == pytest.approx(-10.0, abs=1e-6)
+        assert corners[3][1] == pytest.approx(-10.0, abs=1e-6)
+
+    def test_fault_polygon_closed(self, tmp_path: Path) -> None:
+        """Written polygon should be closed (last point == first point)."""
+        from opencoulomb.io.dat_writer import write_fault_surface_dat
+
+        faults = [
+            FaultElement(
+                x_start=0, y_start=0, x_fin=10, y_fin=0,
+                kode=Kode.STANDARD, slip_1=1.0, slip_2=0.0,
+                dip=60.0, top_depth=0.0, bottom_depth=10.0,
+            ),
+        ]
+        path = tmp_path / "poly.dat"
+        write_fault_surface_dat(faults, path)
+        lines = path.read_text().strip().split("\n")
+        # Skip comments and segment marker; data lines are the polygon
+        data_lines = [ln for ln in lines if not ln.startswith("#") and not ln.startswith(">")]
+        # 4 corners + 1 closing point = 5 data lines
+        assert len(data_lines) == 5
+        assert data_lines[0] == data_lines[-1]

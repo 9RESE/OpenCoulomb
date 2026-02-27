@@ -606,6 +606,25 @@ def dc3d(
     z = np.atleast_1d(np.asarray(z, dtype=np.float64))
     N = x.shape[0]
 
+    # Suppress divide-by-zero and invalid warnings at singularities (r→0).
+    # NaN/inf are sanitized to 0 before returning.
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return _dc3d_inner(alpha, x, y, z, N, depth, dip, al1, al2, aw1, aw2,
+                           disl1, disl2, disl3)
+
+
+def _dc3d_inner(
+    alpha: float,
+    x: NDArray[np.float64], y: NDArray[np.float64], z: NDArray[np.float64],
+    N: int,
+    depth: float, dip: float,
+    al1: float, al2: float, aw1: float, aw2: float,
+    disl1: float, disl2: float, disl3: float,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64],
+           NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Inner dc3d computation (called inside np.errstate guard)."""
     # Precompute medium/angle constants.
     co = _dccon0(alpha, dip)
 
@@ -722,6 +741,9 @@ def dc3d(
 
             sign = 1.0 if (j + k) != 1 else -1.0
             u += sign * du
+
+    # Sanitize singularity artifacts (NaN/inf → 0)
+    np.nan_to_num(u, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
 
     return (
         u[0], u[1], u[2],
@@ -1171,13 +1193,16 @@ def dc3d0(
     z = np.atleast_1d(np.asarray(z, dtype=np.float64))
     N = x.shape[0]
 
+    # Suppress divide-by-zero and invalid warnings at singularities (r→0).
+    # NaN/inf are sanitized to 0 before returning.
     co = _dccon0(alpha, dip)
 
     u = np.zeros((12, N), dtype=np.float64)
     zz = z.copy()
 
-    # Snap near-zero inputs.
-    xx = np.where(np.abs(x) < _EPS, 0.0, x)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        # Snap near-zero inputs.
+        xx = np.where(np.abs(x) < _EPS, 0.0, x)
     yy = np.where(np.abs(y) < _EPS, 0.0, y)
 
     # ---- Real source ----
@@ -1206,6 +1231,9 @@ def dc3d0(
         if i >= 9:
             du_val = du_val + duc[i - 9]
         u[i] += du_val
+
+    # Sanitize singularity artifacts (NaN/inf → 0)
+    np.nan_to_num(u, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
 
     return (
         u[0], u[1], u[2],
