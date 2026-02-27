@@ -40,6 +40,8 @@ def save_figure(
         msg = f"Unsupported format '{suffix}'. Use one of: {sorted(_SUPPORTED_FORMATS)}"
         raise ValueError(msg)
 
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+
     kwargs: dict[str, Any] = {"bbox_inches": "tight", "pad_inches": 0.1, "transparent": transparent}
     if dpi is not None:
         kwargs["dpi"] = dpi

@@ -11,7 +11,10 @@ import click
 def info_cmd(inp_file: Path) -> None:
     """Display model information from an .inp file."""
     from opencoulomb.io import read_inp
-    model = read_inp(inp_file)
+    try:
+        model = read_inp(inp_file)
+    except Exception as exc:
+        raise click.ClickException(f"Parse error: {exc}") from exc
 
     click.echo(f"Model: {model.title}")
     click.echo(f"Material: Poisson={model.material.poisson:.4f}, Young={model.material.young:.0f} bar, friction={model.material.friction:.4f}")

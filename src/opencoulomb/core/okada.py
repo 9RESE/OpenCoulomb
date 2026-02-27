@@ -1203,37 +1203,37 @@ def dc3d0(
     with np.errstate(divide="ignore", invalid="ignore"):
         # Snap near-zero inputs.
         xx = np.where(np.abs(x) < _EPS, 0.0, x)
-    yy = np.where(np.abs(y) < _EPS, 0.0, y)
+        yy = np.where(np.abs(y) < _EPS, 0.0, y)
 
-    # ---- Real source ----
-    dd = depth + z
-    dd = np.where(np.abs(dd) < _EPS, 0.0, dd)
+        # ---- Real source ----
+        dd = depth + z
+        dd = np.where(np.abs(dd) < _EPS, 0.0, dd)
 
-    dua = _ua0(xx, yy, dd, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
+        dua = _ua0(xx, yy, dd, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
 
-    # Real source: u -= dua (with sign flip on last triplet)
-    for i in range(12):
-        if i < 9:
-            u[i] -= dua[i]
-        else:
-            u[i] += dua[i]
+        # Real source: u -= dua (with sign flip on last triplet)
+        for i in range(12):
+            if i < 9:
+                u[i] -= dua[i]
+            else:
+                u[i] += dua[i]
 
-    # ---- Image source ----
-    dd = depth - z
-    dd = np.where(np.abs(dd) < _EPS, 0.0, dd)
+        # ---- Image source ----
+        dd = depth - z
+        dd = np.where(np.abs(dd) < _EPS, 0.0, dd)
 
-    dua = _ua0(xx, yy, dd, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
-    dub = _ub0(xx, yy, dd, zz, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
-    duc = _uc0(xx, yy, dd, zz, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
+        dua = _ua0(xx, yy, dd, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
+        dub = _ub0(xx, yy, dd, zz, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
+        duc = _uc0(xx, yy, dd, zz, pot1, pot2, pot3, pot4, co.sd, co.cd, co)
 
-    for i in range(12):
-        du_val = dua[i] + dub[i] + zz * duc[i]
-        if i >= 9:
-            du_val = du_val + duc[i - 9]
-        u[i] += du_val
+        for i in range(12):
+            du_val = dua[i] + dub[i] + zz * duc[i]
+            if i >= 9:
+                du_val = du_val + duc[i - 9]
+            u[i] += du_val
 
-    # Sanitize singularity artifacts (NaN/inf → 0)
-    np.nan_to_num(u, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
+        # Sanitize singularity artifacts (NaN/inf → 0)
+        np.nan_to_num(u, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
 
     return (
         u[0], u[1], u[2],

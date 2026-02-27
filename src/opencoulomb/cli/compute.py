@@ -39,13 +39,19 @@ def compute_cmd(
     # Parse
     from opencoulomb.io import read_inp
     logger.info("Parsing %s", inp_file.name)
-    model = read_inp(inp_file)
+    try:
+        model = read_inp(inp_file)
+    except Exception as exc:
+        raise click.ClickException(f"Parse error: {exc}") from exc
     logger.info("Model: %s (%d sources, %d receivers)", model.title, model.n_sources, model.n_receivers)
 
     # Compute grid
     from opencoulomb.core import compute_grid
     logger.info("Computing grid CFS...")
-    result = compute_grid(model, receiver_index=receiver)
+    try:
+        result = compute_grid(model, receiver_index=receiver)
+    except Exception as exc:
+        raise click.ClickException(f"Computation error: {exc}") from exc
     logger.info("Grid: %d x %d points", result.grid_shape[1], result.grid_shape[0])
 
     # Determine output formats

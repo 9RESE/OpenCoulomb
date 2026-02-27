@@ -334,14 +334,17 @@ class TestCrossSectionErrors:
             compute_cross_section(model)
 
     def test_zero_length_profile_raises(self, simple_model) -> None:
-        """Raise ComputationError for zero-length profile."""
-        spec = CrossSectionSpec(
-            start_x=5.0, start_y=5.0,
-            finish_x=5.0, finish_y=5.0,
-            depth_min=0, depth_max=10, z_inc=2,
-        )
-        with pytest.raises(ComputationError, match="zero length"):
-            compute_cross_section(simple_model, spec=spec)
+        """Raise ValidationError for zero-length profile.
+
+        Validation now fires in CrossSectionSpec.__post_init__ before any
+        pipeline computation is attempted.
+        """
+        with pytest.raises(ValidationError, match="zero length"):
+            CrossSectionSpec(
+                start_x=5.0, start_y=5.0,
+                finish_x=5.0, finish_y=5.0,
+                depth_min=0, depth_max=10, z_inc=2,
+            )
 
     def test_receiver_index_invalid(self, simple_model, ew_spec) -> None:
         """Raise ValidationError for invalid receiver index."""

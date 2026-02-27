@@ -85,7 +85,10 @@ class FaultElement:
 
     @property
     def is_source(self) -> bool:
-        """True if this element has non-zero slip (is a source fault)."""
+        """True if this element has non-zero slip (is a source fault).
+
+        Uses exact float comparison: .inp files specify receiver slip as exactly 0.0.
+        """
         return self.slip_1 != 0.0 or self.slip_2 != 0.0
 
     @property

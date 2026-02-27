@@ -63,4 +63,6 @@ def plot_cmd(
         raise click.ClickException(f"Unknown plot type: {plot_type}")
 
     save_figure(fig, output, dpi=dpi)
+    import matplotlib.pyplot as plt
+    plt.close(fig)
     click.echo(f"Saved: {output}")

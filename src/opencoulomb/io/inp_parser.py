@@ -14,10 +14,6 @@ from __future__ import annotations
 import re
 from enum import Enum, auto
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 from opencoulomb.exceptions import ParseError
 from opencoulomb.types.fault import FaultElement, Kode
@@ -56,8 +52,9 @@ def read_inp(path: str | Path) -> CoulombModel:
     try:
         text = p.read_text(encoding="utf-8")
     except UnicodeDecodeError:
-        # Fall back to latin-1 for legacy Coulomb files
         text = p.read_text(encoding="latin-1")
+    except OSError as exc:
+        raise ParseError(f"Cannot read file: {exc}", filename=str(p)) from exc
     return parse_inp_string(text, filename=str(p))
 
 
@@ -117,7 +114,6 @@ class _ParserState(Enum):
     START = auto()
     TITLE_LINE2 = auto()
     PARAMS = auto()
-    STRESS = auto()
     FAULTS_HEADER = auto()
     SOURCE_FAULTS = auto()
     RECEIVER_HEADER = auto()
@@ -146,13 +142,25 @@ class _InpParser:
         self._cross_section_params: dict[int, float] = {}
         self._n_fixed: int = 0
 
+        # State dispatch table (built once, not per-line)
+        self._handlers = {
+            _ParserState.START: self._on_start,
+            _ParserState.TITLE_LINE2: self._on_title_line2,
+            _ParserState.PARAMS: self._on_params,
+            _ParserState.FAULTS_HEADER: self._on_faults_header,
+            _ParserState.SOURCE_FAULTS: self._on_source_faults,
+            _ParserState.RECEIVER_HEADER: self._on_receiver_header,
+            _ParserState.RECEIVER_FAULTS: self._on_receiver_faults,
+            _ParserState.GRID: self._on_grid,
+            _ParserState.CROSS_SECTION: self._on_cross_section,
+            _ParserState.MAP_INFO: self._on_map_info,
+            _ParserState.DONE: lambda _line: None,
+        }
+
     # -- helpers ----------------------------------------------------------
 
     def _error(self, msg: str) -> ParseError:
         return ParseError(msg, filename=self._filename, line_number=self._lineno)
-
-    def _current_line(self) -> str:
-        return self._lines[self._lineno - 1]
 
     def _is_blank(self, line: str) -> bool:
         return line.strip() == ""
@@ -168,7 +176,7 @@ class _InpParser:
     def parse(self) -> CoulombModel:
         """Run the state machine and return a CoulombModel."""
         if not self._lines:
-            raise self._error("Empty input")
+            raise ParseError("Empty input", filename=self._filename)
 
         self._lineno = 0
         self._state = _ParserState.START
@@ -184,21 +192,7 @@ class _InpParser:
 
     def _dispatch(self, line: str) -> None:
         """Dispatch a single line to the current state handler."""
-        handler: dict[_ParserState, Callable[[str], None]] = {
-            _ParserState.START: self._on_start,
-            _ParserState.TITLE_LINE2: self._on_title_line2,
-            _ParserState.PARAMS: self._on_params,
-            _ParserState.STRESS: self._on_stress,
-            _ParserState.FAULTS_HEADER: self._on_faults_header,
-            _ParserState.SOURCE_FAULTS: self._on_source_faults,
-            _ParserState.RECEIVER_HEADER: self._on_receiver_header,
-            _ParserState.RECEIVER_FAULTS: self._on_receiver_faults,
-            _ParserState.GRID: self._on_grid,
-            _ParserState.CROSS_SECTION: self._on_cross_section,
-            _ParserState.MAP_INFO: self._on_map_info,
-            _ParserState.DONE: lambda _line: None,
-        }
-        handler[self._state](line)
+        self._handlers[self._state](line)
 
     # -- state handlers ---------------------------------------------------
 
@@ -231,10 +225,6 @@ class _InpParser:
             return
 
         self._param_text += " " + stripped
-
-    def _on_stress(self, line: str) -> None:
-        # This state is not used; stress lines are extracted from _param_text
-        pass  # pragma: no cover
 
     def _on_faults_header(self, line: str) -> None:
         """Waiting for the column header line for source faults."""

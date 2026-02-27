@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -47,6 +48,15 @@ class CrossSectionSpec:
             )
         if self.z_inc <= 0:
             raise ValidationError(f"z_inc must be positive, got {self.z_inc}")
+        profile_length = math.sqrt(
+            (self.finish_x - self.start_x) ** 2 + (self.finish_y - self.start_y) ** 2
+        )
+        if profile_length < 1e-10:
+            raise ValidationError(
+                "Cross-section profile has zero length "
+                f"(start=({self.start_x}, {self.start_y}), "
+                f"finish=({self.finish_x}, {self.finish_y}))"
+            )
 
 
 @dataclass(slots=True)

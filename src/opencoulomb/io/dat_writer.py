@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from opencoulomb.types.fault import FaultElement
     from opencoulomb.types.result import CoulombResult
 
+from opencoulomb.exceptions import OutputError
+
 
 def write_coulomb_dat(
     result: CoulombResult,
@@ -46,8 +48,15 @@ def write_coulomb_dat(
         "uz": result.stress.uz,
     }
 
+    if field not in field_map:
+        raise ValueError(
+            f"Unknown field '{field}'. Must be one of: {sorted(field_map.keys())}"
+        )
     data = field_map[field].reshape(n_y, n_x)
-    np.savetxt(filepath, data, fmt="%12.4e", delimiter="\t")
+    try:
+        np.savetxt(filepath, data, fmt="%12.4e", delimiter="\t")
+    except OSError as exc:
+        raise OutputError(f"Cannot write {filepath}: {exc}") from exc
 
 
 def write_fault_surface_dat(
@@ -70,19 +79,22 @@ def write_fault_surface_dat(
     """
     filepath = Path(filepath)
 
-    with filepath.open("w") as f:
-        f.write("# GMT fault surface projections\n")
-        f.write("# Format: x(km) y(km) — closed polygons\n")
+    try:
+        with filepath.open("w", encoding="utf-8") as f:
+            f.write("# GMT fault surface projections\n")
+            f.write("# Format: x(km) y(km) - closed polygons\n")
 
-        for i, fault in enumerate(faults):
-            label = fault.label or f"Fault {i + 1}"
-            f.write(f"> {label}\n")
+            for i, fault in enumerate(faults):
+                label = fault.label or f"Fault {i + 1}"
+                f.write(f"> {label}\n")
 
-            corners = _fault_polygon_corners(fault)
-            for cx, cy in corners:
-                f.write(f"{cx:.6f} {cy:.6f}\n")
-            # Close the polygon by repeating the first corner
-            f.write(f"{corners[0][0]:.6f} {corners[0][1]:.6f}\n")
+                corners = _fault_polygon_corners(fault)
+                for cx, cy in corners:
+                    f.write(f"{cx:.6f} {cy:.6f}\n")
+                # Close the polygon by repeating the first corner
+                f.write(f"{corners[0][0]:.6f} {corners[0][1]:.6f}\n")
+    except OSError as exc:
+        raise OutputError(f"Cannot write {filepath}: {exc}") from exc
 
 
 def _fault_polygon_corners(
@@ -98,7 +110,8 @@ def _fault_polygon_corners(
     dip_rad = math.radians(fault.dip)
 
     # Horizontal offset from trace to bottom edge (surface projection)
-    if fault.dip >= 90.0:
+    _DIP_THRESHOLD = 1e-6  # degrees
+    if fault.dip <= _DIP_THRESHOLD or fault.dip >= 90.0:
         h_offset = 0.0
     else:
         depth_diff = fault.bottom_depth - fault.top_depth
@@ -120,7 +133,7 @@ def _fault_polygon_corners(
     perp_y = -dx / trace_len  # perpendicular y component
 
     # Offset for top-edge to account for non-zero top_depth
-    h_offset_top = 0.0 if fault.dip >= 90.0 else fault.top_depth / math.tan(dip_rad)
+    h_offset_top = 0.0 if fault.dip <= _DIP_THRESHOLD or fault.dip >= 90.0 else fault.top_depth / math.tan(dip_rad)
 
     # 4 corners (surface projection)
     # Top-left (trace start, offset for top_depth)

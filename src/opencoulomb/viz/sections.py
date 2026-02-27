@@ -40,6 +40,10 @@ def plot_cross_section(
             raise ValueError(msg)
 
     field_map = {"cfs": section.cfs, "shear": section.shear, "normal": section.normal}
+    if field not in field_map:
+        raise ValueError(
+            f"Unknown field '{field}'. Must be one of: {sorted(field_map.keys())}"
+        )
     data = field_map[field]
 
     norm = symmetric_norm(data, vmax=vmax)

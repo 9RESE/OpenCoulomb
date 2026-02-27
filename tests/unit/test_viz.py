@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import matplotlib
+
+matplotlib.use("Agg")  # non-interactive backend — must be before pyplot import
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -121,7 +125,6 @@ class TestBase:
     def test_add_colorbar(self) -> None:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         from opencoulomb.viz._base import add_colorbar
 
@@ -133,7 +136,6 @@ class TestBase:
     def test_finalize_figure(self) -> None:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         from opencoulomb.viz._base import finalize_figure
 
@@ -226,7 +228,6 @@ class TestCfsMap:
     ) -> None:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         from opencoulomb.viz.maps import plot_cfs_map
 
@@ -273,7 +274,6 @@ class TestFaultTraces:
     def test_plot_on_existing_axes(self, simple_model: CoulombModel) -> None:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         from opencoulomb.viz.faults import plot_fault_traces
 
@@ -425,7 +425,6 @@ class TestExport:
     def test_unsupported_format(self) -> None:
         import matplotlib
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
 
         from opencoulomb.viz.export import save_figure
 
@@ -439,8 +438,6 @@ class TestExport:
         import matplotlib
         matplotlib.use("Agg")
         from pathlib import Path
-
-        import matplotlib.pyplot as plt
 
         from opencoulomb.viz.export import save_figure
 

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")  # non-interactive backend — must be set before pyplot import
+
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -18,6 +22,14 @@ COULOMB34_INP_DIR = INP_FILES_DIR / "coulomb34"
 USGS_FF_INP_DIR = INP_FILES_DIR / "usgs_finite_fault"
 REFERENCE_OUTPUTS_DIR = FIXTURES_DIR / "reference_outputs"
 OKADA_REFERENCE_DIR = FIXTURES_DIR / "okada_reference"
+
+
+@pytest.fixture(autouse=True)
+def close_matplotlib_figures() -> None:
+    """Close all open matplotlib figures after each test to prevent resource leaks."""
+    yield
+    import matplotlib.pyplot as plt
+    plt.close("all")
 
 
 @pytest.fixture(scope="session")

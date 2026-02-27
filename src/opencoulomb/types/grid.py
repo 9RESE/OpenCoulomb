@@ -1,6 +1,5 @@
 """Grid specification data structures."""
 
-import math
 from dataclasses import dataclass
 
 from opencoulomb.exceptions import ValidationError
@@ -37,21 +36,35 @@ class GridSpec:
 
     def __post_init__(self) -> None:
         if self.finish_x <= self.start_x:
-            raise ValidationError("finish_x must exceed start_x")
+            raise ValidationError(
+                f"finish_x ({self.finish_x}) must exceed start_x ({self.start_x})"
+            )
         if self.finish_y <= self.start_y:
-            raise ValidationError("finish_y must exceed start_y")
+            raise ValidationError(
+                f"finish_y ({self.finish_y}) must exceed start_y ({self.start_y})"
+            )
         if self.x_inc <= 0 or self.y_inc <= 0:
-            raise ValidationError("Grid increments must be positive")
+            raise ValidationError(
+                f"Grid increments must be positive, got x_inc={self.x_inc}, y_inc={self.y_inc}"
+            )
+        if self.depth < 0:
+            raise ValidationError(f"Grid depth must be non-negative, got {self.depth}")
 
     @property
     def n_x(self) -> int:
-        """Number of grid points in X direction."""
-        return math.floor((self.finish_x - self.start_x) / self.x_inc) + 1
+        """Number of grid points in X direction.
+
+        Matches np.arange(start_x, finish_x + x_inc*0.5, x_inc) count.
+        """
+        return round((self.finish_x - self.start_x) / self.x_inc) + 1
 
     @property
     def n_y(self) -> int:
-        """Number of grid points in Y direction."""
-        return math.floor((self.finish_y - self.start_y) / self.y_inc) + 1
+        """Number of grid points in Y direction.
+
+        Matches np.arange(start_y, finish_y + y_inc*0.5, y_inc) count.
+        """
+        return round((self.finish_y - self.start_y) / self.y_inc) + 1
 
     @property
     def n_points(self) -> int:

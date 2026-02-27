@@ -36,6 +36,10 @@ def direction_cosines(
         l_updip: updip direction in the fault plane (horizontal component).
         l_normal: outward normal to the fault plane.
     """
+    # Following Okada (1992) coordinate convention:
+    # x=along-strike, y=updip-horizontal, z=up.
+    # Strike measured clockwise from North.
+    # Dip measured from horizontal (0=horizontal, pi/2=vertical).
     ss = np.sin(strike_rad)
     cs = np.cos(strike_rad)
     sd = np.sin(dip_rad)

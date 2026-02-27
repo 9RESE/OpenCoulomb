@@ -79,6 +79,8 @@ def compute_grid(
     material = model.material
 
     # 1. Generate observation grid
+    # Grid generation: the +x_inc*0.5 ensures the endpoint is included
+    # despite floating-point rounding in np.arange.
     x_1d = np.arange(grid.start_x, grid.finish_x + grid.x_inc * 0.5, grid.x_inc)
     y_1d = np.arange(grid.start_y, grid.finish_y + grid.y_inc * 0.5, grid.y_inc)
     n_x = len(x_1d)
@@ -88,7 +90,7 @@ def compute_grid(
     gx, gy = np.meshgrid(x_1d, y_1d)
     x_flat = gx.ravel()
     y_flat = gy.ravel()
-    z_flat = np.full_like(x_flat, -grid.depth)  # negative below surface
+    z_flat = np.full_like(x_flat, -grid.depth)  # negative = below surface (Okada convention: z<=0)
     n_pts = len(x_flat)
 
     # 2. Initialize accumulators
@@ -313,6 +315,15 @@ def _accumulate_fault(
         fault.x_start, fault.y_start, fault.x_fin, fault.y_fin,
         fault.dip, fault.top_depth, fault.bottom_depth,
     )
+
+    # Guard against degenerate faults that would produce NaN
+    if geom["length"] < 1e-10 and not fault.is_point_source:
+        import warnings
+        warnings.warn(
+            f"Skipping degenerate fault (length={geom['length']:.2e} km): {fault.label}",
+            stacklevel=2,
+        )
+        return
 
     strike_rad = geom["strike_rad"]
     dip_rad = geom["dip_rad"]

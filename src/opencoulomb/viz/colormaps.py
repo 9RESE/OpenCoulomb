@@ -28,7 +28,10 @@ def displacement_cmap() -> Colormap:
 
 
 def stress_cmap() -> Colormap:
-    """Diverging colormap for stress components."""
+    """Diverging colormap for individual stress components.
+
+    Currently identical to coulomb_cmap(); may diverge in future versions.
+    """
     return matplotlib.colormaps.get_cmap("RdBu_r")
 
 

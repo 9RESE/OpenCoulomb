@@ -232,6 +232,8 @@ def find_optimal_planes(
     dip_opt = np.empty(n)
     rake_opt = np.empty(n)
 
+    # Per-point loop: the conditional logic in _normal_to_strike_dip_rake
+    # (atan2, nz sign flip, dip~0 branch) resists simple vectorization.
     for i in range(n):
         s, d, r = _normal_to_strike_dip_rake(
             normals_opt[i],

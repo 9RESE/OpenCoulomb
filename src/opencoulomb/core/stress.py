@@ -60,6 +60,11 @@ def gradients_to_stress(
     sxx, syy, szz, syz, sxz, sxy : ndarray of shape (N,)
         Stress tensor components in bar (Voigt notation).
     """
+    if not (0.0 < poisson < 0.5):
+        raise ValueError(f"Poisson's ratio must be in (0, 0.5), got {poisson}")
+    if young <= 0:
+        raise ValueError(f"Young's modulus must be positive, got {young}")
+
     # Lame parameters
     mu = young / (2.0 * (1.0 + poisson))  # shear modulus
     lam = young * poisson / ((1.0 + poisson) * (1.0 - 2.0 * poisson))
@@ -103,9 +108,11 @@ def rotate_stress_tensor(
     NDArray[np.float64],
     NDArray[np.float64],
 ]:
-    """Rotate a stress tensor from fault-local to geographic coordinates.
+    """Rotate stress tensor from fault-local to geographic (E,N,Up) coordinates.
 
-    Uses the Bond transformation matrix for Voigt notation.
+    Uses the Bond transformation matrix for Voigt notation:
+    sigma_geo = R^T @ sigma_local @ R
+    where R is the geographic-to-fault rotation matrix.
 
     Parameters
     ----------
