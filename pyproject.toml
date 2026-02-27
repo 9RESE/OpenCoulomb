@@ -77,6 +77,8 @@ testpaths = ["tests"]
 addopts = "--strict-markers -v"
 markers = [
     "reference: Coulomb 3.4 reference validation tests (awaiting reference values)",
+    "performance: Performance benchmark tests (Level 6 validation)",
+    "e2e: End-to-end validation tests (Level 5 validation)",
 ]
 
 [tool.coverage.run]
@@ -86,3 +88,9 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 fail_under = 90
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.",
+    "@overload",
+]
