@@ -54,3 +54,39 @@ site/
 # Environment variables
 .env
 .env.local
+
+# Hatch
+.hatch/
+
+# Distribution packaging
+develop-eggs/
+downloads/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+MANIFEST
+.installed.cfg
+.eggs/
+*.egg-info/
+
+# Coverage
+coverage.xml
+*.cover
+*.py,cover
+nosetests.xml
+
+# pyenv
+.python-version
+
+# pytype
+.pytype/
+
+# Pyre
+.pyre/
+
+# OpenCoulomb generated outputs
+output/

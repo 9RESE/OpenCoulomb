@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opencoulomb"
+version = "0.1.0"
+description = "Open-source Coulomb failure stress computation"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    {name = "OpenCoulomb Contributors"}
+]
+keywords = ["seismology", "coulomb", "stress", "earthquake", "okada", "geophysics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "hypothesis>=6.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+    "pre-commit>=3.0",
+]
+
+[project.scripts]
+opencoulomb = "opencoulomb.cli.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/opencoulomb/opencoulomb"
+Documentation = "https://opencoulomb.readthedocs.io"
+Repository = "https://github.com/opencoulomb/opencoulomb"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/opencoulomb"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM",
+    "TCH", "PTH", "S", "ASYNC", "RUF", "PERF"
+]
+ignore = ["E501", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101", "ARG", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers -v"
+
+[tool.coverage.run]
+source = ["src/opencoulomb"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
