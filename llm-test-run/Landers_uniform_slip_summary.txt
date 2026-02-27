@@ -1,0 +1,30 @@
+OpenCoulomb Computation Summary
+========================================
+
+Model: Landers simple uniform slip model
+(0,0)=-117.870¡,35.185¡
+
+Material Properties
+  Poisson's ratio:  0.2500
+  Young's modulus:  800000 bar
+  Friction coeff:   0.4000
+
+Grid
+  X range: -150.00 to 150.00 km
+  Y range: -180.00 to 180.00 km
+  Spacing: 10.0000 x 10.0000 km
+  Points:  31 x 37 = 1147
+  Depth:   7.50 km
+
+Faults
+  Source faults:   4
+  Receiver faults: 0
+
+CFS Results
+  Receiver: strike=142.0, dip=90.0, rake=0.0
+  Max CFS:  2.7678e+01 bar
+  Min CFS:  -3.8619e+01 bar
+  Mean CFS: 3.7303e-04 bar
+
+Displacement
+  Max |u|:  7.7881e+00 m
