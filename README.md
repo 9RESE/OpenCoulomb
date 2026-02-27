@@ -1,0 +1,1 @@
+I want to make a open source stand alone version of the coulomb open source package for matlab. The package is open source and free. We need to replace the matlab parts the package needs.
