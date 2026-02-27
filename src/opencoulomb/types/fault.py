@@ -118,6 +118,11 @@ class FaultElement:
         return 0.0  # Not well-defined for tensile sources
 
     @property
+    def rake_rad(self) -> float:
+        """Rake angle in radians."""
+        return math.radians(self.rake_deg)
+
+    @property
     def length(self) -> float:
         """Surface trace length in km."""
         dx = self.x_fin - self.x_start
