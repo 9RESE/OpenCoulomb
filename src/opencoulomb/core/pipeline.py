@@ -30,9 +30,17 @@ from opencoulomb.core.okada import dc3d, dc3d0
 from opencoulomb.core.stress import gradients_to_stress, rotate_stress_tensor
 from opencoulomb.exceptions import ComputationError
 from opencoulomb.types.fault import FaultElement, Kode
-from opencoulomb.types.result import CoulombResult, ElementResult, StressResult
+from opencoulomb.types.result import (
+    CoulombResult,
+    ElementResult,
+    StrainResult,
+    StressResult,
+    VolumeResult,
+)
 
 if TYPE_CHECKING:
+    from opencoulomb.core.tapering import TaperSpec
+    from opencoulomb.types.grid import VolumeGridSpec
     from opencoulomb.types.model import CoulombModel
     from opencoulomb.types.section import CrossSectionResult, CrossSectionSpec
 
@@ -40,6 +48,8 @@ if TYPE_CHECKING:
 def compute_grid(
     model: CoulombModel,
     receiver_index: int | None = None,
+    compute_strain: bool = False,
+    taper: TaperSpec | None = None,
 ) -> CoulombResult:
     """Run the full CFS computation on a grid.
 
@@ -56,6 +66,10 @@ def compute_grid(
         ``None`` (default) uses the first receiver (index 0), or
         falls back to the first source fault orientation if no
         receivers exist.
+    compute_strain : bool
+        If True, also compute strain tensor at grid points.
+    taper : TaperSpec or None
+        If provided, subdivide source faults and apply slip taper.
 
     Returns
     -------
@@ -108,13 +122,24 @@ def compute_grid(
 
     # 3. Source fault loop (superposition)
     for fault in model.source_faults:
-        _accumulate_fault(
-            fault, alpha, material.young, material.poisson,
-            x_flat, y_flat, z_flat,
-            total_ux, total_uy, total_uz,
-            total_sxx, total_syy, total_szz,
-            total_syz, total_sxz, total_sxy,
-        )
+        if taper is not None:
+            from opencoulomb.core.tapering import subdivide_and_taper
+            for sub in subdivide_and_taper(fault, taper):
+                _accumulate_fault(
+                    sub, alpha, material.young, material.poisson,
+                    x_flat, y_flat, z_flat,
+                    total_ux, total_uy, total_uz,
+                    total_sxx, total_syy, total_szz,
+                    total_syz, total_sxz, total_sxy,
+                )
+        else:
+            _accumulate_fault(
+                fault, alpha, material.young, material.poisson,
+                x_flat, y_flat, z_flat,
+                total_ux, total_uy, total_uz,
+                total_sxx, total_syy, total_szz,
+                total_syz, total_sxz, total_sxy,
+            )
 
     # Build StressResult
     stress = StressResult(
@@ -194,6 +219,11 @@ def compute_grid(
             material.friction,
         )
 
+    # Compute strain if requested
+    strain_result: StrainResult | None = None
+    if compute_strain:
+        strain_result = _compute_strain_from_stress_result(stress, material.young, material.poisson)
+
     return CoulombResult(
         stress=stress,
         cfs=cfs,
@@ -206,6 +236,7 @@ def compute_grid(
         oops_strike=oops_strike,
         oops_dip=oops_dip,
         oops_rake=oops_rake,
+        strain=strain_result,
     )
 
 
@@ -614,4 +645,208 @@ def compute_cross_section(
         sxz=total_sxz.reshape(shape),
         sxy=total_sxy.reshape(shape),
         spec=cs,
+    )
+
+
+def compute_volume(
+    model: CoulombModel,
+    volume_spec: VolumeGridSpec,
+    receiver_index: int | None = None,
+    compute_strain: bool = False,
+    taper: TaperSpec | None = None,
+) -> VolumeResult:
+    """Compute 3D CFS volume through multiple depth layers.
+
+    Generates a full 3D meshgrid and passes all points through the
+    same accumulation loop as ``compute_grid``.
+
+    Parameters
+    ----------
+    model : CoulombModel
+        Fully populated model.
+    volume_spec : VolumeGridSpec
+        3D grid specification with depth range.
+    receiver_index : int or None
+        Receiver fault for CFS resolution.
+    compute_strain : bool
+        If True, also compute strain tensor.
+    taper : TaperSpec or None
+        Optional slip tapering.
+
+    Returns
+    -------
+    VolumeResult
+        3D stress, displacement, and CFS.
+    """
+    if not model.source_faults:
+        raise ComputationError(
+            "Model has no source faults; cannot compute volume."
+        )
+
+    material = model.material
+    alpha = material.alpha
+
+    # Generate 3D meshgrid
+    x_1d = np.arange(
+        volume_spec.start_x,
+        volume_spec.finish_x + volume_spec.x_inc * 0.5,
+        volume_spec.x_inc,
+    )
+    y_1d = np.arange(
+        volume_spec.start_y,
+        volume_spec.finish_y + volume_spec.y_inc * 0.5,
+        volume_spec.y_inc,
+    )
+    depths = volume_spec.depths
+    n_x = len(x_1d)
+    n_y = len(y_1d)
+    n_z = len(depths)
+
+    # Build 3D grid: order (depth, y, x) for natural slicing
+    # meshgrid with indexing='ij' for (z, y, x) ordering
+    gd, gy, gx = np.meshgrid(depths, y_1d, x_1d, indexing="ij")
+    x_flat = gx.ravel()
+    y_flat = gy.ravel()
+    z_flat = -gd.ravel()  # negative below surface (Okada convention)
+    n_pts = len(x_flat)
+
+    # Initialize accumulators
+    total_ux = np.zeros(n_pts)
+    total_uy = np.zeros(n_pts)
+    total_uz = np.zeros(n_pts)
+    total_sxx = np.zeros(n_pts)
+    total_syy = np.zeros(n_pts)
+    total_szz = np.zeros(n_pts)
+    total_syz = np.zeros(n_pts)
+    total_sxz = np.zeros(n_pts)
+    total_sxy = np.zeros(n_pts)
+
+    # Source fault loop
+    for fault in model.source_faults:
+        if taper is not None:
+            from opencoulomb.core.tapering import subdivide_and_taper
+            for sub in subdivide_and_taper(fault, taper):
+                _accumulate_fault(
+                    sub, alpha, material.young, material.poisson,
+                    x_flat, y_flat, z_flat,
+                    total_ux, total_uy, total_uz,
+                    total_sxx, total_syy, total_szz,
+                    total_syz, total_sxz, total_sxy,
+                )
+        else:
+            _accumulate_fault(
+                fault, alpha, material.young, material.poisson,
+                x_flat, y_flat, z_flat,
+                total_ux, total_uy, total_uz,
+                total_sxx, total_syy, total_szz,
+                total_syz, total_sxz, total_sxy,
+            )
+
+    stress = StressResult(
+        x=x_flat, y=y_flat, z=z_flat,
+        ux=total_ux, uy=total_uy, uz=total_uz,
+        sxx=total_sxx, syy=total_syy, szz=total_szz,
+        syz=total_syz, sxz=total_sxz, sxy=total_sxy,
+    )
+
+    # Receiver orientation (same logic as compute_grid)
+    recv_strike, recv_dip, recv_rake = _resolve_receiver_orientation(
+        model, receiver_index,
+    )
+
+    cfs, shear, normal = compute_cfs_on_receiver(
+        total_sxx, total_syy, total_szz,
+        total_syz, total_sxz, total_sxy,
+        recv_strike, recv_dip, recv_rake,
+        material.friction,
+    )
+
+    strain_result: StrainResult | None = None
+    if compute_strain:
+        strain_result = _compute_strain_from_stress_result(stress, material.young, material.poisson)
+
+    return VolumeResult(
+        stress=stress,
+        cfs=cfs,
+        shear=shear,
+        normal=normal,
+        receiver_strike=math.degrees(recv_strike),
+        receiver_dip=math.degrees(recv_dip),
+        receiver_rake=math.degrees(recv_rake),
+        volume_shape=(n_z, n_y, n_x),
+        depths=depths,
+        strain=strain_result,
+    )
+
+
+def _resolve_receiver_orientation(
+    model: CoulombModel,
+    receiver_index: int | None,
+) -> tuple[float, float, float]:
+    """Determine receiver fault orientation for CFS resolution.
+
+    Returns strike_rad, dip_rad, rake_rad.
+    """
+    receivers = model.receiver_faults
+    if receivers:
+        idx = receiver_index if receiver_index is not None else 0
+        if idx < 0 or idx >= len(receivers):
+            from opencoulomb.exceptions import ValidationError
+            raise ValidationError(
+                f"receiver_index={idx} out of range; "
+                f"model has {len(receivers)} receiver(s) (0..{len(receivers) - 1})"
+            )
+        recv = receivers[idx]
+        geom = compute_fault_geometry(
+            recv.x_start, recv.y_start, recv.x_fin, recv.y_fin,
+            recv.dip, recv.top_depth, recv.bottom_depth,
+        )
+        return geom["strike_rad"], geom["dip_rad"], recv.rake_rad
+
+    if receiver_index is not None:
+        from opencoulomb.exceptions import ValidationError
+        raise ValidationError(
+            f"receiver_index={receiver_index} specified but model has no receivers"
+        )
+    src = model.source_faults[0]
+    geom = compute_fault_geometry(
+        src.x_start, src.y_start, src.x_fin, src.y_fin,
+        src.dip, src.top_depth, src.bottom_depth,
+    )
+    return geom["strike_rad"], geom["dip_rad"], 0.0
+
+
+def _compute_strain_from_stress_result(
+    stress: StressResult,
+    young: float,
+    poisson: float,
+) -> StrainResult:
+    """Compute strain from stress using inverse Hooke's law.
+
+    For consistency with the forward computation, we invert:
+    sigma = lambda*tr(e)*I + 2*mu*e  →  e = (sigma - lambda*tr(sigma)*I/(3*lambda+2*mu)) / (2*mu)
+
+    But it's simpler to use the compliance form:
+    e_ij = ((1+nu)/E) * sigma_ij - (nu/E) * delta_ij * sigma_kk
+    """
+    nu = poisson
+    e = young
+    inv_e = 1.0 / e
+    factor_diag = (1.0 + nu) * inv_e
+    factor_vol = nu * inv_e
+
+    sigma_kk = stress.sxx + stress.syy + stress.szz
+
+    exx = factor_diag * stress.sxx - factor_vol * sigma_kk
+    eyy = factor_diag * stress.syy - factor_vol * sigma_kk
+    ezz = factor_diag * stress.szz - factor_vol * sigma_kk
+    eyz = factor_diag * stress.syz  # off-diagonal: no volumetric term
+    exz = factor_diag * stress.sxz
+    exy = factor_diag * stress.sxy
+    vol = exx + eyy + ezz
+
+    return StrainResult(
+        exx=exx, eyy=eyy, ezz=ezz,
+        eyz=eyz, exz=exz, exy=exy,
+        volumetric=vol,  # type: ignore[arg-type]  # numpy dtype inference limitation
     )

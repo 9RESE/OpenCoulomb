@@ -38,6 +38,15 @@ opencoulomb compute [OPTIONS] INP_FILE
 | `--field [cfs\|shear\|normal]` | `cfs` | Stress field for `.dat` output |
 | `--receiver INT` | All receivers | Receiver fault index (0-based) to resolve CFS onto |
 | `--cross-section / --no-cross-section` | `--cross-section` | Compute cross-section if defined |
+| `--strain` | False | Also compute strain tensor |
+| `--volume` | False | Compute 3D volume instead of 2D grid |
+| `--depth-min FLOAT` | `0.0` | Volume: minimum depth (km) |
+| `--depth-max FLOAT` | `20.0` | Volume: maximum depth (km) |
+| `--depth-inc FLOAT` | `2.0` | Volume: depth increment (km) |
+| `--taper [cosine\|linear\|elliptical]` | None | Slip taper profile |
+| `--taper-nx INT` | `5` | Taper: subdivisions along strike |
+| `--taper-ny INT` | `3` | Taper: subdivisions down dip |
+| `--taper-width FLOAT` | `0.2` | Taper: width fraction (0–0.5) |
 | `-v, --verbose` | False | Print progress messages |
 
 ### Output files
@@ -100,11 +109,16 @@ opencoulomb plot [OPTIONS] INP_FILE
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-o, --output PATH` | `{stem}_{type}.png` | Output image path |
-| `-t, --type [cfs\|displacement\|section]` | `cfs` | Plot type |
+| `-t, --type [cfs\|displacement\|section\|beachball\|volume-slices\|volume-3d\|volume-gif]` | `cfs` | Plot type |
 | `--vmax FLOAT` | Auto (98th percentile) | Symmetric color scale maximum |
 | `--dpi INT` | `300` | Output resolution in dots per inch |
 | `--no-faults` | False | Hide fault trace overlays |
 | `--receiver INT` | First receiver | Receiver fault index (0-based) |
+| `--catalog PATH` | None | Earthquake catalog CSV for beachball/volume overlay |
+| `--gps PATH` | None | GPS station CSV for displacement comparison |
+| `--depth-min FLOAT` | `0.0` | Volume: minimum depth (km) |
+| `--depth-max FLOAT` | `20.0` | Volume: maximum depth (km) |
+| `--depth-inc FLOAT` | `2.0` | Volume: depth increment (km) |
 | `-v, --verbose` | False | Print progress messages |
 
 ### Plot types
@@ -114,6 +128,10 @@ opencoulomb plot [OPTIONS] INP_FILE
 | `cfs` | Horizontal CFS map at grid depth | — |
 | `displacement` | Three-panel ux/uy/uz displacement | — |
 | `section` | Vertical CFS cross-section | Cross-section block in `.inp` |
+| `beachball` | Focal mechanism beachballs on CFS map | Optional: `--catalog` for events |
+| `volume-slices` | Grid of horizontal depth slices | — |
+| `volume-3d` | 3D scatter plot above CFS threshold | — |
+| `volume-gif` | Animated GIF through depth layers | — |
 
 ### Output formats
 
@@ -294,4 +312,97 @@ opencoulomb convert model.inp -f dat --field normal
 
 # Export summary text
 opencoulomb convert model.inp -f summary
+```
+
+---
+
+## scale (v0.2.0)
+
+Compute earthquake scaling relations (magnitude to fault dimensions).
+
+```
+opencoulomb scale [OPTIONS] MAGNITUDE
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `MAGNITUDE` | Earthquake magnitude (e.g., 7.0) |
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--type [strike_slip\|reverse\|normal\|all]` | `all` | Fault type |
+| `-r, --relation [wells_coppersmith_1994\|blaser_2010]` | `wells_coppersmith_1994` | Scaling relation |
+
+### Examples
+
+```bash
+opencoulomb scale 7.0
+opencoulomb scale 7.0 --type strike_slip -r blaser_2010
+```
+
+---
+
+## fetch (v0.2.0)
+
+Fetch USGS finite fault models from the ComCat API. Requires `opencoulomb[network]`.
+
+```
+opencoulomb fetch [OPTIONS] [EVENT_ID]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `EVENT_ID` | USGS event ID (e.g., `us7000abcd`). Optional if `--search` used. |
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--search` | False | Search for events instead of fetching one |
+| `--min-mag FLOAT` | `5.0` | Minimum magnitude (for search) |
+| `--start TEXT` | None | Start date YYYY-MM-DD (for search) |
+| `--end TEXT` | None | End date YYYY-MM-DD (for search) |
+| `--compute` | False | Also compute CFS after fetching |
+| `-o, --output PATH` | Current directory | Output directory |
+
+### Examples
+
+```bash
+opencoulomb fetch us7000abcd
+opencoulomb fetch us7000abcd --compute -o results/
+opencoulomb fetch --search --min-mag 7.0 --start 2024-01-01
+```
+
+---
+
+## catalog (v0.2.0)
+
+Query earthquake catalogs from ISC or USGS FDSN services. Requires `opencoulomb[network]`.
+
+```
+opencoulomb catalog [OPTIONS]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--start TEXT` | Required | Start date YYYY-MM-DD |
+| `--end TEXT` | Required | End date YYYY-MM-DD |
+| `--min-mag FLOAT` | `4.0` | Minimum magnitude |
+| `--max-mag FLOAT` | None | Maximum magnitude |
+| `--source [isc\|usgs]` | `isc` | Catalog source |
+| `-o, --output PATH` | `catalog.csv` | Output CSV path |
+
+### Examples
+
+```bash
+opencoulomb catalog --start 2024-01-01 --end 2024-12-31 --min-mag 4.0
+opencoulomb catalog --start 2024-01-01 --end 2024-06-30 --source usgs -o events.csv
 ```

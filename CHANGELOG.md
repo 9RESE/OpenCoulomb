@@ -5,6 +5,59 @@ All notable changes to OpenCoulomb will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-27
+
+### Added
+- **Scaling relations** — Wells & Coppersmith (1994) and Blaser et al. (2010) magnitude-to-fault dimension scaling
+  - New CLI command: `opencoulomb scale 7.0 --type strike_slip --relation wells_coppersmith_1994`
+  - `magnitude_to_fault()` creates `FaultElement` from magnitude + geometry
+- **Strain output** — Full symmetric strain tensor computation alongside stress
+  - New `StrainResult` type with 6 components + volumetric (dilatation)
+  - `compute_grid(..., compute_strain=True)` populates strain fields
+  - Extracted `gradients_to_strain()` from `gradients_to_stress()` (no behavioral change)
+- **Depth-loop volume grid** — 3D Coulomb stress computation through depth layers
+  - `VolumeGridSpec` type for 3D grid specification (x, y, depth ranges)
+  - `VolumeResult` type with `cfs_volume()` and `slice_at_depth()` methods
+  - `compute_volume(model, volume_spec)` pipeline function
+  - CLI: `opencoulomb compute input.inp --volume --depth-min 0 --depth-max 20 --depth-inc 2`
+  - Writers: `write_volume_csv()` and `write_volume_slices()` for 3D output
+- **Slip tapering** — Realistic fault slip distributions with edge tapering
+  - Cosine, linear, and elliptical taper profiles via `TaperSpec`
+  - Fault subdivision into N×M sub-patches via `subdivide_fault()`
+  - CLI: `opencoulomb compute input.inp --taper cosine --taper-nx 5 --taper-ny 3`
+- **USGS finite fault import** — Fetch earthquake models from USGS ComCat API
+  - `search_events()`, `fetch_coulomb_inp()`, `fetch_finite_fault()` in `io.usgs_client`
+  - FSP (SRCMOD) and GeoJSON fault format parsers in `io.fsp_parser`
+  - CLI: `opencoulomb fetch us7000abcd` and `opencoulomb fetch --search --min-mag 7.0`
+- **ISC earthquake catalog** — Query earthquake catalogs via ObsPy FDSN client
+  - `CatalogEvent` and `EarthquakeCatalog` types with filtering (magnitude, depth, region)
+  - `query_isc()` and `query_usgs_catalog()` in `io.isc_client`
+  - Catalog CSV/JSON read/write in `io.catalog_io`
+  - CLI: `opencoulomb catalog --start 2024-01-01 --end 2024-12-31 --min-mag 4.0`
+- **Beachball focal mechanisms** — Plot focal mechanisms on CFS maps
+  - `plot_beachball()` using ObsPy `beach()` with pure-matplotlib fallback
+  - `plot_beachballs_on_map()` with CFS-colored receivers and catalog overlay
+  - CLI: `opencoulomb plot input.inp --type beachball --catalog catalog.csv`
+- **GPS displacement comparison** — Compare modeled vs observed GPS vectors
+  - `GPSStation` and `GPSDataset` types, CSV/JSON readers
+  - `plot_gps_comparison()` with observed/modeled quiver arrows
+  - `compute_misfit()` returns RMS horizontal/vertical/3D and reduction of variance
+  - CLI: `opencoulomb plot input.inp --gps stations.csv`
+- **3D volume visualization** — Multi-panel and animated depth visualizations
+  - `plot_volume_slices()` — grid of horizontal CFS slices
+  - `plot_volume_cross_sections()` — vertical E-W cross-sections
+  - `plot_volume_3d()` — 3D scatter plot above threshold
+  - `export_volume_gif()` — animated GIF through depth layers
+  - `plot_catalog_on_volume()` — earthquake overlay on depth slices
+  - CLI: `opencoulomb plot input.inp --type volume-slices`, `volume-3d`, `volume-gif`
+- **Optional network dependencies** — `pip install opencoulomb[network]` adds ObsPy and requests
+
+### Changed
+- Version bumped from 0.1.0 to 0.2.0
+- `compute_grid()` now accepts optional `compute_strain` and `taper` parameters (backward-compatible defaults)
+- `CoulombResult` has optional `strain` field (defaults to `None`)
+- `symmetric_norm()` in `viz.colormaps` accepts both `NDArray` and `float` arguments
+
 ## [0.1.0] - 2026-02-27
 
 ### Added

@@ -24,6 +24,15 @@ The package ships:
 
 No C compiler, Fortran compiler, or MATLAB installation is required.
 
+### Optional (network features)
+
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| ObsPy | ≥ 1.4 | FDSN client, beachball rendering |
+| requests | ≥ 2.28 | USGS ComCat API client |
+
+Install with: `pip install opencoulomb[network]`
+
 ## 7.3 Installation Scenarios
 
 ### Scientist's laptop (standard)
@@ -104,12 +113,14 @@ All output paths are explicit CLI arguments (`--output`).
    e. twine upload to PyPI (on tag)
 ```
 
-## 7.7 No Server-Side Components
+## 7.7 Network Features (v0.2.0)
 
-OpenCoulomb is a **desktop / batch** tool. There is no:
-- Web server or API endpoint
-- Database
-- Background daemon or service
-- Network dependency at runtime
+Core computation remains **fully offline**. Optional network features (requiring `opencoulomb[network]`):
 
-All computations run locally and offline.
+- **USGS ComCat API** — Fetch finite fault models and `.inp` files for real earthquakes
+- **ISC/USGS FDSN** — Query earthquake catalogs via ObsPy
+
+All network features:
+- Guard imports with `try/except ImportError`
+- Raise clear error messages if optional dependencies are missing
+- Are optional — the core library works without any network access

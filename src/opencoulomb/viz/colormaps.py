@@ -36,15 +36,15 @@ def stress_cmap() -> Colormap:
 
 
 def symmetric_norm(
-    data: NDArray[np.float64],
+    data: NDArray[np.float64] | float,
     vmax: float | None = None,
 ) -> Normalize:
     """Create a symmetric normalization centered on zero.
 
     Parameters
     ----------
-    data : ndarray
-        Data array to determine limits from.
+    data : ndarray or float
+        Data array (or scalar) to determine limits from.
     vmax : float or None
         Maximum absolute value. If None, uses max(|data|).
 

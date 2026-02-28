@@ -12,6 +12,7 @@ Public API
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from enum import Enum, auto
 from pathlib import Path
 
@@ -143,7 +144,8 @@ class _InpParser:
         self._n_fixed: int = 0
 
         # State dispatch table (built once, not per-line)
-        self._handlers = {
+        _handler_t = dict[_ParserState, Callable[[str], None]]
+        self._handlers: _handler_t = {
             _ParserState.START: self._on_start,
             _ParserState.TITLE_LINE2: self._on_title_line2,
             _ParserState.PARAMS: self._on_params,

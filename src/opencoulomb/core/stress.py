@@ -23,6 +23,47 @@ if TYPE_CHECKING:
 _KM_TO_M = 0.001
 
 
+def gradients_to_strain(
+    uxx: NDArray[np.float64],
+    uyx: NDArray[np.float64],
+    uzx: NDArray[np.float64],
+    uxy: NDArray[np.float64],
+    uyy: NDArray[np.float64],
+    uzy: NDArray[np.float64],
+    uxz: NDArray[np.float64],
+    uyz: NDArray[np.float64],
+    uzz: NDArray[np.float64],
+) -> tuple[
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+]:
+    """Convert displacement gradients to symmetric strain tensor.
+
+    Parameters
+    ----------
+    uxx .. uzz : ndarray of shape (N,)
+        Displacement gradient components du_i/dx_j from Okada DC3D.
+        Units: m/km (Okada convention).
+
+    Returns
+    -------
+    exx, eyy, ezz, eyz, exz, exy : ndarray of shape (N,)
+        Strain tensor components (dimensionless, Voigt notation).
+    """
+    exx = uxx * _KM_TO_M
+    eyy = uyy * _KM_TO_M
+    ezz = uzz * _KM_TO_M
+    exy = 0.5 * (uxy + uyx) * _KM_TO_M
+    exz = 0.5 * (uxz + uzx) * _KM_TO_M
+    eyz = 0.5 * (uyz + uzy) * _KM_TO_M
+
+    return exx, eyy, ezz, eyz, exz, exy
+
+
 def gradients_to_stress(
     uxx: NDArray[np.float64],
     uyx: NDArray[np.float64],
@@ -69,13 +110,10 @@ def gradients_to_stress(
     mu = young / (2.0 * (1.0 + poisson))  # shear modulus
     lam = young * poisson / ((1.0 + poisson) * (1.0 - 2.0 * poisson))
 
-    # Strain tensor (symmetric) with km→m conversion
-    exx = uxx * _KM_TO_M
-    eyy = uyy * _KM_TO_M
-    ezz = uzz * _KM_TO_M
-    exy = 0.5 * (uxy + uyx) * _KM_TO_M
-    exz = 0.5 * (uxz + uzx) * _KM_TO_M
-    eyz = 0.5 * (uyz + uzy) * _KM_TO_M
+    # Compute strain via the extracted function
+    exx, eyy, ezz, eyz, exz, exy = gradients_to_strain(
+        uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz,
+    )
 
     # Volumetric strain
     vol = exx + eyy + ezz

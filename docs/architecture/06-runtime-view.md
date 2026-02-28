@@ -59,6 +59,38 @@ core/pipeline.py
 Done — files written to results/
 ```
 
+## 6.1b Volume Workflow (v0.2.0)
+
+The 3D volume computation: `opencoulomb compute model.inp --volume --depth-min 0 --depth-max 20 --depth-inc 2`.
+
+```
+cli/compute.py
+ │
+ │  Build VolumeGridSpec(depth_min, depth_max, depth_inc + grid bounds from model)
+ │
+ │  compute_volume(model, volume_spec)
+ ▼
+core/pipeline.py
+ │
+ │  Step 1: Generate 3D meshgrid: x × y × depths
+ │          shape: (N_z * N_y * N_x,) flattened
+ │
+ │  Step 2: For each source fault (with optional tapering):
+ │    ├── [taper] subdivide_and_taper(fault, taper_spec) → subfaults
+ │    └── For each (sub)fault: same Okada + stress pipeline as 2D
+ │
+ │  Step 3: Resolve CFS → flat arrays (N_z * N_y * N_x,)
+ │
+ │  Step 4 [optional]: Compute strain via inverse Hooke's law
+ │
+ │  Return VolumeResult(stress, cfs, volume_shape=(N_z, N_y, N_x), depths)
+ │
+ │  volume_writer.write_volume_csv(volume, path)
+ │  volume_writer.write_volume_slices(volume, output_dir)
+ ▼
+Done — 3D CSV + per-depth .dat files written
+```
+
 ## 6.2 Library API Workflow
 
 Users entering via the Python API can bypass the CLI entirely:

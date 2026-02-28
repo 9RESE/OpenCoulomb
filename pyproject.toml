@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "opencoulomb"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source Coulomb failure stress computation"
 readme = "README.md"
 license = "Apache-2.0"
@@ -32,6 +32,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+network = [
+    "obspy>=1.4",
+    "requests>=2.28",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -39,6 +43,7 @@ dev = [
     "ruff>=0.1",
     "mypy>=1.0",
     "pre-commit>=3.0",
+    "responses>=0.23",
 ]
 
 [project.scripts]
@@ -79,6 +84,7 @@ markers = [
     "reference: Coulomb 3.4 reference validation tests (awaiting reference values)",
     "performance: Performance benchmark tests (Level 6 validation)",
     "e2e: End-to-end validation tests (Level 5 validation)",
+    "network: Tests requiring network access (skipped in CI by default)",
 ]
 
 [tool.coverage.run]

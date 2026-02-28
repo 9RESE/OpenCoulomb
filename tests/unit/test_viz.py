@@ -330,6 +330,30 @@ class TestCrossSectionPlot:
         # y-axis should be inverted (depth increases downward)
         assert ax.yaxis_inverted()
 
+    def test_existing_axes_used(self, simple_section: CrossSectionResult) -> None:
+        """When ax is passed, it is used and fig is extracted from it (lines 37-40)."""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from opencoulomb.viz.sections import plot_cross_section
+
+        fig0, ax0 = plt.subplots(1, 1)
+        fig_ret, ax_ret = plot_cross_section(simple_section, ax=ax0)
+        assert ax_ret is ax0
+        assert fig_ret is fig0
+        plt.close("all")
+
+    def test_unknown_field_raises(self, simple_section: CrossSectionResult) -> None:
+        """Unknown field name raises ValueError (line 44)."""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from opencoulomb.viz.sections import plot_cross_section
+
+        with pytest.raises(ValueError, match="Unknown field"):
+            plot_cross_section(simple_section, field="invalid_field")
+        plt.close("all")
+
 
 # ---------------------------------------------------------------------------
 # Displacement

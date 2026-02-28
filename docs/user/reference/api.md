@@ -462,3 +462,158 @@ def save_figure(fig: Figure, path: str | Path, dpi: int = 300) -> None
 
 Save a Matplotlib figure. Format inferred from the path extension.
 Closes the figure after saving.
+
+---
+
+## Core — v0.2.0 Additions
+
+### `compute_volume`
+
+```python
+from opencoulomb.core import compute_volume
+```
+
+```python
+def compute_volume(
+    model: CoulombModel,
+    volume_spec: VolumeGridSpec,
+    receiver_index: int | None = None,
+    compute_strain: bool = False,
+    taper: TaperSpec | None = None,
+) -> VolumeResult
+```
+
+Run 3D CFS computation through depth layers defined by `volume_spec`.
+
+**Parameters**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `model` | `CoulombModel` | Parsed model |
+| `volume_spec` | `VolumeGridSpec` | 3D grid bounds and depth range |
+| `receiver_index` | `int` or `None` | Receiver fault for CFS resolution |
+| `compute_strain` | `bool` | Also compute strain tensor |
+| `taper` | `TaperSpec` or `None` | Optional slip taper specification |
+
+**Returns** `VolumeResult`
+
+**Example**
+
+```python
+from opencoulomb.types import VolumeGridSpec
+from opencoulomb.core import compute_volume
+
+spec = VolumeGridSpec(-10, -10, 10, 10, 1.0, 1.0, 0.0, 20.0, 2.0)
+volume = compute_volume(model, spec)
+cfs_3d = volume.cfs_volume()        # shape (n_z, n_y, n_x)
+slice_2d = volume.slice_at_depth(5)  # CoulombResult at depth index 5
+```
+
+---
+
+### `gradients_to_strain`
+
+```python
+from opencoulomb.core import gradients_to_strain
+```
+
+```python
+def gradients_to_strain(
+    uxx, uyx, uzx, uxy, uyy, uzy, uxz, uyz, uzz
+) -> tuple[NDArray, NDArray, NDArray, NDArray, NDArray, NDArray]
+```
+
+Convert displacement gradients to symmetric strain tensor components.
+Returns `(exx, eyy, ezz, eyz, exz, exy)`.
+
+---
+
+### Scaling relations
+
+```python
+from opencoulomb.core import wells_coppersmith_1994, blaser_2010, magnitude_to_fault
+```
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `wells_coppersmith_1994(magnitude, fault_type)` | `ScalingResult` | WC94 scaling |
+| `blaser_2010(magnitude, fault_type)` | `ScalingResult` | Blaser 2010 scaling |
+| `magnitude_to_fault(magnitude, center_x, center_y, ...)` | `FaultElement` | Create fault from magnitude |
+
+`ScalingResult` has attributes: `length_km`, `width_km`, `area_km2`, `displacement_m`, `magnitude`, `fault_type`, `relation`.
+
+---
+
+### Slip tapering
+
+```python
+from opencoulomb.core import TaperSpec, TaperProfile, subdivide_and_taper
+```
+
+| Function | Description |
+|----------|-------------|
+| `subdivide_fault(fault, n_strike, n_dip)` | Tile fault into sub-patches |
+| `apply_taper(subfaults, taper_spec)` | Apply slip taper to sub-patches |
+| `subdivide_and_taper(fault, taper)` | Combined one-step function |
+
+`TaperProfile` enum: `COSINE`, `LINEAR`, `ELLIPTICAL`
+
+---
+
+## I/O — v0.2.0 Additions
+
+### Volume writers
+
+```python
+from opencoulomb.io import write_volume_csv, write_volume_slices
+```
+
+| Function | Description |
+|----------|-------------|
+| `write_volume_csv(volume, path)` | 15-column CSV with depth column |
+| `write_volume_slices(volume, output_dir, field)` | One `.dat` file per depth |
+
+### USGS client
+
+```python
+from opencoulomb.io import search_events, fetch_coulomb_inp, fetch_finite_fault
+```
+
+Requires `opencoulomb[network]`. Functions query the USGS ComCat API.
+
+### Catalog I/O
+
+```python
+from opencoulomb.io import read_catalog_csv, write_catalog_csv
+```
+
+### GPS reader
+
+```python
+from opencoulomb.io import read_gps_csv, read_gps_json
+```
+
+---
+
+## Visualization — v0.2.0 Additions
+
+### Volume plots
+
+```python
+from opencoulomb.viz import (
+    plot_volume_slices, plot_volume_cross_sections, plot_volume_3d,
+    export_volume_gif, plot_catalog_on_volume,
+)
+```
+
+### Beachball plots
+
+```python
+from opencoulomb.viz import plot_beachball, plot_beachballs_on_map
+```
+
+### GPS comparison
+
+```python
+from opencoulomb.viz import plot_gps_comparison, compute_misfit
+```

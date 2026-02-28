@@ -25,7 +25,7 @@ def plot_fault_traces(
     if ax is None:
         fig, ax = create_figure()
     else:
-        fig = ax.get_figure()
+        fig = ax.get_figure()  # type: ignore[assignment]
         if fig is None:
             msg = "Axes has no parent figure"
             raise ValueError(msg)
